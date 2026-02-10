@@ -7,8 +7,8 @@ const CONFIG = {
     heroName: 'You',
     partnerName: 'My Love',
     billboardPhotos: [
-        'photos/photo1.jpg', 'photos/photo2.jpg', 'photos/photo3.jpg',
-        'photos/photo4.jpg', 'photos/photo5.jpg', 'photos/photo6.jpg'
+        'photos/photo1.jfif', 'photos/photo2.jfif', 'photos/photo3.jfif',
+        'photos/photo4.jfif', 'photos/photo5.jfif', 'photos/photo6.jfif'
     ]
 };
 
