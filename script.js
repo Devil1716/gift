@@ -405,7 +405,7 @@ function render() {
             var s = seg.sprites[i];
             if (s.collected) continue; // Skip collected hearts
             var sx = sInfo.x + s.x * sInfo.w;
-            var sScale = sInfo.scale * W * 0.8;
+            var sScale = sInfo.w;
             if (s.type === 'tree') drawTree(c, sx, sInfo.y, sScale);
             else if (s.type === 'billboard') drawBillboard(c, sx, sInfo.y, sScale, s.img);
             else if (s.type === 'heart') drawHeart(c, sx, sInfo.y, sScale);
@@ -418,7 +418,7 @@ function render() {
             var carSeg = findSegment(car.z);
             if (carSeg.index === seg.index) {
                 var cx = sInfo.x + car.x * sInfo.w;
-                var carScale = sInfo.scale * W;
+                var carScale = sInfo.w;
                 if (car.type === 'auto') drawAuto(c, cx, sInfo.y, carScale);
                 else if (car.type === 'bus') drawBus(c, cx, sInfo.y, carScale);
                 else drawCar(c, cx, sInfo.y, carScale, car.color);
@@ -452,9 +452,9 @@ function drawTree(c, x, y, s) {
     c.fillStyle = '#1e591e'; c.beginPath(); c.arc(x, y - s * 0.9, s * 0.4, 0, Math.PI * 2); c.fill();
 }
 function drawBillboard(c, x, y, s, src) {
-    var w = s * 3, h = s * 2;
+    var w = s * 1.0, h = s * 0.7;
     // Pole
-    c.fillStyle = '#777'; c.fillRect(x - s * 0.1, y - h * 1.2, s * 0.2, h * 1.2);
+    c.fillStyle = '#777'; c.fillRect(x - s * 0.05, y - h * 1.5, s * 0.1, h * 1.5);
     // Frame
     c.fillStyle = '#eee'; c.fillRect(x - w / 2, y - h * 2, w, h);
     // Image (or placeholder)
@@ -463,13 +463,13 @@ function drawBillboard(c, x, y, s, src) {
         try { c.drawImage(img, x - w / 2 + 2, y - h * 2 + 2, w - 4, h - 4); } catch (e) { }
     } else {
         c.fillStyle = '#ff4d88'; c.fillRect(x - w / 2 + 2, y - h * 2 + 2, w - 4, h - 4);
-        c.fillStyle = '#fff'; c.font = 'bold ' + Math.floor(h / 4) + 'px Arial'; c.textAlign = 'center'; c.fillText('PHOTO', x, y - h * 1.5);
+        c.fillStyle = '#fff'; c.font = 'bold ' + Math.floor(h / 3) + 'px Arial'; c.textAlign = 'center'; c.fillText('PHOTO', x, y - h * 1.5);
     }
 }
 function drawHeart(c, x, y, s) {
     var dy = Math.sin(Date.now() / 200) * s * 0.2; // Float
     var h = s * 0.5;
-    c.fillStyle = '#ff0044'; c.textAlign = 'center'; c.font = Math.floor(s * 0.8) + 'px Arial';
+    c.fillStyle = '#ff0044'; c.textAlign = 'center'; c.font = Math.floor(s * 0.5) + 'px Arial';
     c.fillText('💖', x, y - h - dy);
 }
 function drawAuto(c, x, y, s) { // Rickshaw
@@ -498,10 +498,10 @@ function drawCar(c, x, y, s, col) {
     c.fillStyle = '#f00'; c.fillRect(x - w * 0.35, y - h * 0.3, w * 0.15, h * 0.1); c.fillRect(x + w * 0.2, y - h * 0.3, w * 0.15, h * 0.1); // lights
 }
 function drawSign(c, x, y, s, txt, col, emo) {
-    var sw = s * 3.5, sh = s * 1.2;
-    c.fillStyle = '#888'; c.fillRect(x - s * 0.1, y - sh * 2, s * 0.2, sh * 2);
+    var sw = s * 1.0, sh = s * 0.35;
+    c.fillStyle = '#888'; c.fillRect(x - s * 0.05, y - sh * 2, s * 0.1, sh * 2);
     c.fillStyle = col; c.fillRect(x - sw / 2, y - sh * 2.5, sw, sh);
-    c.fillStyle = '#fff'; c.font = 'bold ' + Math.floor(s * 0.4) + 'px Arial'; c.textAlign = 'center'; c.fillText(emo + ' ' + txt, x, y - sh * 1.9);
+    c.fillStyle = '#fff'; c.font = 'bold ' + Math.floor(s * 0.15) + 'px Arial'; c.textAlign = 'center'; c.fillText(emo + ' ' + txt, x, y - sh * 2.0);
 }
 function drawPlayer(c, W, H) {
     var w = W * 0.22, h = W * 0.12; if (game.H > game.W) { w = game.W * 0.35; h = w * 0.5; }
