@@ -468,13 +468,13 @@ function drawHeart(c, x, y, s) {
     c.fillStyle = '#ff0044'; c.textAlign = 'center'; c.font = Math.floor(s * 0.5) + 'px Arial';
     c.fillText('💖', x, y - h - dy);
 }
-function drawAuto(c, x, y, s) { // Rickshaw (Polished)
+function drawAuto(c, x, y, s) { // Rickshaw (Safe)
     var w = s * 0.28, h = s * 0.22;
     // Shadow
-    c.fillStyle = 'rgba(0,0,0,0.4)'; c.beginPath(); c.ellipse(x, y, w * 0.4, h * 0.1, 0, 0, Math.PI * 2); c.fill();
+    c.fillStyle = 'rgba(0,0,0,0.4)'; c.fillRect(x - w * 0.4, y - h * 0.05, w * 0.8, h * 0.1);
     // Body (Yellow)
     c.fillStyle = '#f1c40f';
-    c.beginPath(); c.roundRect(x - w / 2, y - h * 0.9, w, h * 0.7, 5); c.fill();
+    c.fillRect(x - w / 2, y - h * 0.9, w, h * 0.7);
     // Top (Green Canvas)
     c.fillStyle = '#27ae60';
     c.beginPath(); c.moveTo(x - w * 0.45, y - h * 0.9); c.lineTo(x + w * 0.45, y - h * 0.9);
@@ -486,14 +486,14 @@ function drawAuto(c, x, y, s) { // Rickshaw (Polished)
     c.beginPath(); c.arc(x - w * 0.4, y - h * 0.2, h * 0.15, 0, Math.PI * 2); c.fill();
     c.beginPath(); c.arc(x + w * 0.4, y - h * 0.2, h * 0.15, 0, Math.PI * 2); c.fill();
 }
-function drawBus(c, x, y, s) { // BMTC (Polished)
+function drawBus(c, x, y, s) { // BMTC (Safe)
     var w = s * 0.5, h = s * 0.45;
     // Shadow
     c.fillStyle = 'rgba(0,0,0,0.4)'; c.fillRect(x - w * 0.45, y - h * 0.05, w * 0.9, h * 0.1);
     // Body (Blue)
     var grad = c.createLinearGradient(x, y - h, x, y);
     grad.addColorStop(0, '#3498db'); grad.addColorStop(1, '#2980b9');
-    c.fillStyle = grad; c.beginPath(); c.roundRect(x - w / 2, y - h * 1.1, w, h, 4); c.fill();
+    c.fillStyle = grad; c.fillRect(x - w / 2, y - h * 1.1, w, h);
     // Windows
     c.fillStyle = '#dff9fb'; c.fillRect(x - w * 0.45, y - h * 1.0, w * 0.9, h * 0.3);
     // Stripes
@@ -503,14 +503,14 @@ function drawBus(c, x, y, s) { // BMTC (Polished)
     c.beginPath(); c.arc(x - w * 0.35, y - h * 0.2, w * 0.05, 0, Math.PI * 2); c.fill();
     c.beginPath(); c.arc(x + w * 0.35, y - h * 0.2, w * 0.05, 0, Math.PI * 2); c.fill();
 }
-function drawCar(c, x, y, s, col) { // Traffic Car (Polished)
+function drawCar(c, x, y, s, col) { // Traffic Car (Safe)
     var w = s * 0.3, h = s * 0.22;
     // Shadow
     c.fillStyle = 'rgba(0,0,0,0.4)'; c.fillRect(x - w * 0.4, y - h * 0.05, w * 0.8, h * 0.1);
     // Body
-    c.fillStyle = col; c.beginPath(); c.roundRect(x - w / 2, y - h * 0.8, w, h * 0.6, 6); c.fill();
+    c.fillStyle = col; c.fillRect(x - w / 2, y - h * 0.8, w, h * 0.6);
     // Roof
-    c.fillStyle = '#2c3e50'; c.beginPath(); c.roundRect(x - w * 0.4, y - h * 1.1, w * 0.8, h * 0.5, 4); c.fill();
+    c.fillStyle = '#2c3e50'; c.fillRect(x - w * 0.4, y - h * 1.1, w * 0.8, h * 0.5);
     // Rear Window
     c.fillStyle = '#34495e'; c.fillRect(x - w * 0.35, y - h * 1.0, w * 0.7, h * 0.25);
     // Lights
