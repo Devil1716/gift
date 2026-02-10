@@ -415,12 +415,14 @@ function render() {
             if (carSeg.index === seg.index) {
                 var cx = sInfo.x + car.x * sInfo.w;
                 var carScale = sInfo.w;
+                if (i === 0) getEl('debug').innerHTML = 'Car0 Z: ' + Math.floor(car.z) + ' Seg: ' + carSeg.index + ' DrawY: ' + Math.floor(sInfo.y);
                 if (car.type === 'auto') drawAuto(c, cx, sInfo.y, carScale);
                 else if (car.type === 'bus') drawBus(c, cx, sInfo.y, carScale);
                 else drawCar(c, cx, sInfo.y, carScale, car.color);
             }
         }
     }
+    getEl('debug').innerHTML += '<br>Cars: ' + game.cars.length + ' Roadlen: ' + game.totalLength;
 
     drawPlayer(c, W, H);
 
