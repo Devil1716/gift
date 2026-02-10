@@ -369,8 +369,8 @@ function render() {
 
         var xs1 = W / 2 + (x - game.playerX * ROAD.ROAD_W) * scale1 * W / 2;
         var xs2 = W / 2 + (x + dx - game.playerX * ROAD.ROAD_W) * scale2 * W / 2;
-        var ys1 = H / 2 + (-cameraHeight - (seg.hill - baseSeg.hill * (1 - basePct))) * scale1 * H / 2;
-        var ys2 = H / 2 + (-cameraHeight - seg.hill) * scale2 * H / 2; // Simplified hill calc
+        var ys1 = H / 2 - (-cameraHeight - (seg.hill - baseSeg.hill * (1 - basePct))) * scale1 * H / 2;
+        var ys2 = H / 2 - (-cameraHeight - seg.hill) * scale2 * H / 2; // Simplified hill calc
 
         seg.p1.screen = { x: xs1, y: ys1, w: ROAD.ROAD_W * scale1 * W / 2, scale: scale1 };
 
