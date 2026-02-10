@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,12 +8,24 @@
     <meta name="description" content="A special surprise made with love">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;700&family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;700&family=Poppins:wght@300;400;600;700&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
+    <!-- Premium Overlay Effects -->
+    <div class="overlay-noise"></div>
+    <div class="overlay-vignette"></div>
+
     <!-- Floating Hearts Background -->
     <div class="hearts-bg" id="heartsBg"></div>
+
+    <!-- Sound Control -->
+    <button id="soundToggle" class="sound-toggle" aria-label="Toggle Sound">
+        🔇
+    </button>
 
     <!-- ============ SCREEN 1: INTRO ============ -->
     <section class="screen active" id="introScreen">
@@ -25,7 +38,7 @@
             </div>
             <h1 class="intro-title">Hey Beautiful 💕</h1>
             <p class="intro-subtitle">I made something special just for you...</p>
-            
+
             <div class="envelope-wrapper" id="envelopeBtn">
                 <div class="envelope">
                     <div class="envelope-flap"></div>
@@ -36,10 +49,7 @@
                     </div>
                 </div>
                 <p class="tap-text">Tap to open</p>
-            </div>
-
-            <div class="intro-stars">
-                <span>⭐</span><span>💫</span><span>⭐</span>
+                <div class="glow-effect"></div>
             </div>
         </div>
     </section>
@@ -49,16 +59,13 @@
         <div class="game-content">
             <div class="game-header">
                 <h2 class="game-title">Our Memory Game 💑</h2>
-                <p class="game-desc">Match our special moments together!</p>
                 <div class="game-stats">
                     <div class="stat">
                         <span class="stat-icon">💖</span>
-                        <span class="stat-label">Matches</span>
                         <span class="stat-value" id="matchCount">0/8</span>
                     </div>
                     <div class="stat">
-                        <span class="stat-icon">👆</span>
-                        <span class="stat-label">Moves</span>
+                        <span class="stat-icon">🔄</span>
                         <span class="stat-value" id="moveCount">0</span>
                     </div>
                 </div>
@@ -82,20 +89,23 @@
     <section class="screen" id="finaleScreen">
         <div class="finale-content">
             <div class="confetti-container" id="confettiContainer"></div>
-            
             <div class="finale-heart-burst" id="heartBurst"></div>
 
             <div class="love-letter">
                 <div class="letter-decoration top-left">❀</div>
                 <div class="letter-decoration top-right">❀</div>
-                
+
                 <h2 class="letter-title">To My Everything 💗</h2>
-                
+
                 <div class="letter-body" id="letterBody">
-                    <p>Every moment with you feels like magic. From our silly laughs to our deep conversations, you make everything better just by being you.</p>
-                    <p>You're not just my girlfriend — you're my best friend, my safe place, and my favorite person in the entire universe. 🌌</p>
-                    <p>I made this little game because every memory with you is something I want to hold onto forever. Each photo, each moment — they're all treasures to me.</p>
-                    <p>Thank you for being the most amazing, beautiful, kind, and wonderful human I know. I love you more than words could ever say. 💕</p>
+                    <p>Every moment with you feels like magic. From our silly laughs to our deep conversations, you make
+                        everything better just by being you.</p>
+                    <p>You're not just my girlfriend — you're my best friend, my safe place, and my favorite person in
+                        the entire universe. 🌌</p>
+                    <p>I made this little game because every memory with you is something I want to hold onto forever.
+                        Each photo, each moment — they're all treasures to me.</p>
+                    <p>Thank you for being the most amazing, beautiful, kind, and wonderful human I know. I love you
+                        more than words could ever say. 💕</p>
                     <p class="letter-signature">Forever yours,<br><span class="signature-name">Your Love 💋</span></p>
                 </div>
 
@@ -109,4 +119,5 @@
 
     <script src="script.js"></script>
 </body>
+
 </html>

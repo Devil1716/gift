@@ -1,414 +1,281 @@
 // ============================================================
-// 🎁 Surprise Gift Day — Memory Game
+// 🎁 Surprise Gift Day — Premium Experience
 // ============================================================
 
 // -------- CUSTOMIZATION: EDIT THESE! --------
-
-// Replace the emoji placeholders with your actual photo paths
-// Example: 'photos/1.jpg'
-// For now, we use fun couple emojis as placeholders
 const CARD_DATA = [
-    {
-        id: 1,
-        // image: 'photos/1.jpg',   // ← Uncomment & set your photo path
-        emoji: '🥰',
-        caption: 'The day we first met — my heart skipped a beat!'
-    },
-    {
-        id: 2,
-        // image: 'photos/2.jpg',
-        emoji: '💑',
-        caption: 'Our first date — I was so nervous but so happy!'
-    },
-    {
-        id: 3,
-        // image: 'photos/3.jpg',
-        emoji: '🌅',
-        caption: 'Watching sunsets together — pure magic!'
-    },
-    {
-        id: 4,
-        // image: 'photos/4.jpg',
-        emoji: '🎉',
-        caption: 'Celebrating together — you make everything fun!'
-    },
-    {
-        id: 5,
-        // image: 'photos/5.jpg',
-        emoji: '🍕',
-        caption: 'Our food adventures — we eat, we laugh, we love!'
-    },
-    {
-        id: 6,
-        // image: 'photos/6.jpg',
-        emoji: '🎵',
-        caption: 'Dancing to our song — you + me = perfect rhythm!'
-    },
-    {
-        id: 7,
-        // image: 'photos/7.jpg',
-        emoji: '🌙',
-        caption: 'Late night talks — my favorite kind of nights!'
-    },
-    {
-        id: 8,
-        // image: 'photos/8.jpg',
-        emoji: '💋',
-        caption: 'Every kiss feels like the first one 💕'
-    }
+    { id: 1, image: 'photos/1.jpg', emoji: '🥰', caption: 'The day we first met — my heart skipped a beat!' },
+    { id: 2, image: 'photos/2.jpg', emoji: '💑', caption: 'Our first date — I was so nervous but so happy!' },
+    { id: 3, image: 'photos/3.jpg', emoji: '🌅', caption: 'Watching sunsets together — pure magic!' },
+    { id: 4, image: 'photos/4.jpg', emoji: '🎉', caption: 'Celebrating together — you make everything fun!' },
+    { id: 5, image: 'photos/5.jpg', emoji: '🍕', caption: 'Our food adventures — we eat, we laugh, we love!' },
+    { id: 6, image: 'photos/6.jpg', emoji: '🎵', caption: 'Dancing to our song — you + me = perfect rhythm!' },
+    { id: 7, image: 'photos/7.jpg', emoji: '🌙', caption: 'Late night talks — my favorite kind of nights!' },
+    { id: 8, image: 'photos/8.jpg', emoji: '💋', caption: 'Every kiss feels like the first one 💕' }
 ];
 
-// -------- STATE --------
-let cards = [];
-let flippedCards = [];
-let matchedPairs = 0;
-let moves = 0;
-let isLocked = false;
+// -------- AUDIO SYSTEM (PROCEDURAL) --------
+const AudioSys = {
+    ctx: null,
+    muted: true,
 
-// -------- DOM REFERENCES --------
-const introScreen = document.getElementById('introScreen');
-const gameScreen = document.getElementById('gameScreen');
-const finaleScreen = document.getElementById('finaleScreen');
-const envelopeBtn = document.getElementById('envelopeBtn');
-const gameGrid = document.getElementById('gameGrid');
-const matchCount = document.getElementById('matchCount');
-const moveCount = document.getElementById('moveCount');
-const matchPopup = document.getElementById('matchPopup');
-const matchText = document.getElementById('matchText');
-const replayBtn = document.getElementById('replayBtn');
-const heartsBg = document.getElementById('heartsBg');
+    init() {
+        if (!this.ctx) {
+            this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+    },
 
-// ============================================================
-// FLOATING HEARTS BACKGROUND
-// ============================================================
-function createFloatingHearts() {
-    const hearts = ['💖', '💕', '💗', '💓', '❤️', '💜', '🩷', '🤍'];
-    
-    for (let i = 0; i < 20; i++) {
-        const heart = document.createElement('span');
-        heart.classList.add('floating-heart');
-        heart.textContent = hearts[Math.floor(Math.random() * hearts.length)];
-        heart.style.left = Math.random() * 100 + '%';
-        heart.style.animationDuration = (8 + Math.random() * 12) + 's';
-        heart.style.animationDelay = (Math.random() * 10) + 's';
-        heart.style.fontSize = (0.8 + Math.random() * 1.2) + 'rem';
-        heartsBg.appendChild(heart);
+    toggle() {
+        if (!this.ctx) this.init();
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+        this.muted = !this.muted;
+        return this.muted;
+    },
+
+    playTone(freq, type, duration, vol = 0.1) {
+        if (this.muted || !this.ctx) return;
+
+        try {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+
+            gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+
+            osc.start();
+            osc.stop(this.ctx.currentTime + duration);
+        } catch (e) { console.error(e); }
+    },
+
+    playHover() {
+        this.playTone(400, 'sine', 0.1, 0.02);
+    },
+
+    playClick() {
+        this.playTone(600, 'sine', 0.15, 0.05);
+    },
+
+    playFlip() {
+        this.playTone(300, 'triangle', 0.2, 0.05);
+    },
+
+    playMatch() {
+        // Play a major chord
+        [523.25, 659.25, 783.99].forEach((freq, i) => { // C Major
+            setTimeout(() => this.playTone(freq, 'sine', 0.6, 0.05), i * 50);
+        });
+    },
+
+    playWin() {
+        // Victory fanfare
+        const notes = [523.25, 659.25, 783.99, 1046.50];
+        notes.forEach((freq, i) => {
+            setTimeout(() => this.playTone(freq, 'sine', 0.8, 0.1), i * 150);
+        });
     }
-}
+};
 
-// ============================================================
-// SCREEN TRANSITIONS
-// ============================================================
-function switchScreen(from, to) {
-    // Create transition overlay
-    const overlay = document.createElement('div');
-    overlay.classList.add('transition-overlay');
-    document.body.appendChild(overlay);
+// -------- DOM ELEMENTS --------
+const els = {
+    screens: {
+        intro: document.getElementById('introScreen'),
+        game: document.getElementById('gameScreen'),
+        finale: document.getElementById('finaleScreen')
+    },
+    envelope: document.getElementById('envelopeBtn'),
+    grid: document.getElementById('gameGrid'),
+    popup: document.getElementById('matchPopup'),
+    matchText: document.getElementById('matchText'),
+    matchCount: document.getElementById('matchCount'),
+    moveCount: document.getElementById('moveCount'),
+    soundToggle: document.getElementById('soundToggle'),
+    heartsBg: document.getElementById('heartsBg'),
+    replayBtn: document.getElementById('replayBtn')
+};
 
-    // Trigger overlay
-    requestAnimationFrame(() => {
-        overlay.classList.add('active');
-    });
+// -------- STATE --------
+let state = {
+    flipped: [],
+    matches: 0,
+    moves: 0,
+    locked: false
+};
 
-    setTimeout(() => {
-        from.classList.remove('active');
-        to.classList.add('active');
-
-        setTimeout(() => {
-            overlay.classList.remove('active');
-            setTimeout(() => overlay.remove(), 600);
-        }, 300);
-    }, 600);
-}
-
-// ============================================================
-// INTRO SCREEN
-// ============================================================
-envelopeBtn.addEventListener('click', () => {
-    // Animate envelope opening
-    const flap = envelopeBtn.querySelector('.envelope-flap');
-    flap.style.animation = 'none';
-    flap.style.transition = 'transform 0.5s ease';
-    flap.style.transformOrigin = 'top center';
-    flap.style.transform = 'rotateX(180deg)';
-
-    const letter = envelopeBtn.querySelector('.envelope-letter');
-    letter.style.animation = 'none';
-    letter.style.transition = 'all 0.5s ease 0.3s';
-    letter.style.top = '-30px';
-    letter.style.transform = 'translateX(-50%) scale(1.5)';
-    letter.style.opacity = '0';
-
-    setTimeout(() => {
-        initGame();
-        switchScreen(introScreen, gameScreen);
-    }, 800);
+// -------- INIT & LISTENERS --------
+els.soundToggle.addEventListener('click', () => {
+    const isMuted = AudioSys.toggle();
+    els.soundToggle.textContent = isMuted ? '🔇' : '🔊';
+    els.soundToggle.classList.toggle('muted', isMuted);
+    if (!isMuted) AudioSys.playClick();
 });
 
-// ============================================================
-// MEMORY GAME LOGIC
-// ============================================================
-function shuffleArray(array) {
-    const arr = [...array];
-    for (let i = arr.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [arr[i], arr[j]] = [arr[j], arr[i]];
-    }
-    return arr;
+els.envelope.addEventListener('click', () => {
+    AudioSys.playClick();
+    const env = els.envelope.querySelector('.envelope');
+    env.classList.add('open');
+
+    setTimeout(() => {
+        switchScreen('game');
+        initGame();
+    }, 1200);
+});
+
+els.replayBtn.addEventListener('click', () => {
+    switchScreen('game');
+    initGame();
+});
+
+function switchScreen(name) {
+    Object.values(els.screens).forEach(s => s.classList.remove('active'));
+    els.screens[name].classList.add('active');
 }
 
+// -------- GAME LOGIC --------
 function initGame() {
-    // Reset state
-    cards = [];
-    flippedCards = [];
-    matchedPairs = 0;
-    moves = 0;
-    isLocked = false;
-    matchCount.textContent = '0/8';
-    moveCount.textContent = '0';
-    gameGrid.innerHTML = '';
+    state = { flipped: [], matches: 0, moves: 0, locked: false };
+    els.grid.innerHTML = '';
+    els.matchCount.textContent = '0/8';
+    els.moveCount.textContent = '0';
 
-    // Create pairs and shuffle
-    const pairs = [];
-    CARD_DATA.forEach(data => {
-        pairs.push({ ...data, pairId: data.id });
-        pairs.push({ ...data, pairId: data.id });
-    });
-    cards = shuffleArray(pairs);
+    // Create Deck
+    const deck = [...CARD_DATA, ...CARD_DATA]
+        .sort(() => Math.random() - 0.5)
+        .map((data, index) => ({ ...data, uid: index }));
 
-    // Create card elements
-    cards.forEach((cardData, index) => {
-        const card = document.createElement('div');
-        card.classList.add('memory-card');
-        card.dataset.pairId = cardData.pairId;
-        card.dataset.index = index;
+    // Render Cards
+    deck.forEach(card => {
+        const el = document.createElement('div');
+        el.className = 'memory-card';
+        el.innerHTML = `
+            <div class="card-face card-front">
+                ${card.image ? `<img src="${card.image}" loading="lazy">` : `<span style="font-size:3rem">${card.emoji}</span>`}
+            </div>
+            <div class="card-face card-back"></div>
+        `;
 
-        const front = document.createElement('div');
-        front.classList.add('card-face', 'card-front');
-
-        if (cardData.image) {
-            const img = document.createElement('img');
-            img.src = cardData.image;
-            img.alt = 'Our memory';
-            img.loading = 'lazy';
-            front.appendChild(img);
-        } else {
-            const emojiSpan = document.createElement('span');
-            emojiSpan.classList.add('card-emoji');
-            emojiSpan.textContent = cardData.emoji;
-            front.appendChild(emojiSpan);
-        }
-
-        const back = document.createElement('div');
-        back.classList.add('card-face', 'card-back');
-
-        card.appendChild(front);
-        card.appendChild(back);
-
-        card.addEventListener('click', () => flipCard(card, cardData));
-        gameGrid.appendChild(card);
-
-        // Entrance animation
-        card.style.opacity = '0';
-        card.style.transform = 'scale(0.5) rotateY(0deg)';
-        card.style.transition = 'none';
-        
-        setTimeout(() => {
-            card.style.transition = 'opacity 0.4s ease, transform 0.6s cubic-bezier(0.4, 0, 0.2, 1)';
-            card.style.opacity = '1';
-            card.style.transform = 'scale(1) rotateY(0deg)';
-        }, 100 + index * 60);
+        el.addEventListener('click', () => handleFlip(el, card));
+        el.addEventListener('mouseenter', () => AudioSys.playHover());
+        els.grid.appendChild(el);
     });
 }
 
-function flipCard(cardEl, cardData) {
-    // Guard clauses
-    if (isLocked) return;
-    if (cardEl.classList.contains('flipped')) return;
-    if (cardEl.classList.contains('matched')) return;
-    if (flippedCards.length >= 2) return;
+function handleFlip(el, card) {
+    if (state.locked || el.classList.contains('flipped') || el.classList.contains('matched')) return;
 
-    // Flip the card
-    cardEl.classList.add('flipped');
-    flippedCards.push({ element: cardEl, data: cardData });
+    AudioSys.playFlip();
+    el.classList.add('flipped');
+    state.flipped.push({ el, card });
 
-    if (flippedCards.length === 2) {
-        moves++;
-        moveCount.textContent = moves;
+    if (state.flipped.length === 2) {
+        state.moves++;
+        els.moveCount.textContent = state.moves;
         checkMatch();
     }
 }
 
 function checkMatch() {
-    const [card1, card2] = flippedCards;
-    const isMatch = card1.data.pairId === card2.data.pairId &&
-                    card1.element !== card2.element;
+    state.locked = true;
+    const [c1, c2] = state.flipped;
 
-    if (isMatch) {
-        handleMatch(card1, card2);
-    } else {
-        handleMismatch(card1, card2);
-    }
-}
-
-function handleMatch(card1, card2) {
-    isLocked = true;
-
-    setTimeout(() => {
-        card1.element.classList.add('matched');
-        card2.element.classList.add('matched');
-
-        matchedPairs++;
-        matchCount.textContent = matchedPairs + '/8';
-
-        // Show caption popup
-        showMatchPopup(card1.data.caption);
-
-        flippedCards = [];
-
+    if (c1.card.id === c2.card.id) {
+        // Match
         setTimeout(() => {
-            hideMatchPopup();
-            
-            if (matchedPairs === 8) {
+            AudioSys.playMatch();
+            c1.el.classList.add('matched');
+            c2.el.classList.add('matched');
+            state.matches++;
+            els.matchCount.textContent = `${state.matches}/8`;
+
+            showPopup(c1.card.caption);
+            state.flipped = [];
+            state.locked = false;
+
+            if (state.matches === 8) {
                 setTimeout(() => {
-                    switchScreen(gameScreen, finaleScreen);
-                    startFinale();
-                }, 600);
-            } else {
-                isLocked = false;
+                    switchScreen('finale');
+                    AudioSys.playWin();
+                    startConfetti();
+                }, 2000);
             }
-        }, 1800);
-    }, 500);
-}
-
-function handleMismatch(card1, card2) {
-    isLocked = true;
-
-    setTimeout(() => {
-        // Shake animation
-        card1.element.style.animation = 'shake 0.4s ease';
-        card2.element.style.animation = 'shake 0.4s ease';
-
+        }, 500);
+    } else {
+        // No match
         setTimeout(() => {
-            card1.element.classList.remove('flipped');
-            card2.element.classList.remove('flipped');
-            card1.element.style.animation = '';
-            card2.element.style.animation = '';
-            flippedCards = [];
-            isLocked = false;
-        }, 400);
-    }, 900);
-}
-
-// Add shake keyframes dynamically
-const shakeStyle = document.createElement('style');
-shakeStyle.textContent = `
-    @keyframes shake {
-        0%, 100% { transform: rotateY(180deg) translateX(0); }
-        25% { transform: rotateY(180deg) translateX(-8px); }
-        75% { transform: rotateY(180deg) translateX(8px); }
-    }
-`;
-document.head.appendChild(shakeStyle);
-
-function showMatchPopup(text) {
-    matchText.textContent = text;
-    matchPopup.classList.add('show');
-}
-
-function hideMatchPopup() {
-    matchPopup.classList.remove('show');
-}
-
-// ============================================================
-// FINALE — CONFETTI & HEARTS
-// ============================================================
-function startFinale() {
-    launchConfetti();
-    launchHeartBurst();
-}
-
-function launchConfetti() {
-    const container = document.getElementById('confettiContainer');
-    container.innerHTML = '';
-    const colors = ['#ff6b9d', '#a855f7', '#fbbf24', '#ec4899', '#8b5cf6', '#f472b6', '#c084fc', '#fb923c'];
-
-    for (let i = 0; i < 80; i++) {
-        const piece = document.createElement('div');
-        piece.classList.add('confetti-piece');
-        piece.style.left = Math.random() * 100 + '%';
-        piece.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
-        piece.style.width = (6 + Math.random() * 8) + 'px';
-        piece.style.height = (6 + Math.random() * 8) + 'px';
-        piece.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
-        piece.style.animationDuration = (2 + Math.random() * 3) + 's';
-        piece.style.animationDelay = (Math.random() * 2) + 's';
-        container.appendChild(piece);
-    }
-
-    // Second wave
-    setTimeout(() => {
-        for (let i = 0; i < 40; i++) {
-            const piece = document.createElement('div');
-            piece.classList.add('confetti-piece');
-            piece.style.left = Math.random() * 100 + '%';
-            piece.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
-            piece.style.width = (6 + Math.random() * 8) + 'px';
-            piece.style.height = (6 + Math.random() * 8) + 'px';
-            piece.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
-            piece.style.animationDuration = (2 + Math.random() * 3) + 's';
-            piece.style.animationDelay = (Math.random() * 1.5) + 's';
-            container.appendChild(piece);
-        }
-    }, 2000);
-}
-
-function launchHeartBurst() {
-    const burst = document.getElementById('heartBurst');
-    burst.innerHTML = '';
-    const emojis = ['💖', '💕', '💗', '💓', '❤️', '🩷', '✨', '💫'];
-
-    for (let i = 0; i < 16; i++) {
-        const heart = document.createElement('span');
-        heart.classList.add('burst-heart');
-        heart.textContent = emojis[i % emojis.length];
-
-        const angle = (i / 16) * 360;
-        const distance = 100 + Math.random() * 150;
-        const x = Math.cos(angle * Math.PI / 180) * distance;
-        const y = Math.sin(angle * Math.PI / 180) * distance;
-
-        heart.style.setProperty('--x', x + 'px');
-        heart.style.setProperty('--y', y + 'px');
-        heart.style.animation = `burstOut 1.5s ease-out ${i * 0.08}s forwards`;
-        heart.style.fontSize = (1.2 + Math.random() * 1) + 'rem';
-
-        // Override the animation to use custom positions
-        heart.animate([
-            { transform: 'translate(0, 0) scale(0)', opacity: 1 },
-            { transform: `translate(${x}px, ${y}px) scale(1.5)`, opacity: 0 }
-        ], {
-            duration: 1200,
-            delay: i * 80,
-            easing: 'ease-out',
-            fill: 'forwards'
-        });
-
-        burst.appendChild(heart);
+            c1.el.classList.remove('flipped');
+            c2.el.classList.remove('flipped');
+            state.flipped = [];
+            state.locked = false;
+        }, 1200);
     }
 }
 
-// ============================================================
-// REPLAY
-// ============================================================
-replayBtn.addEventListener('click', () => {
-    matchedPairs = 0;
-    moves = 0;
-    switchScreen(finaleScreen, gameScreen);
-    setTimeout(() => initGame(), 800);
+function showPopup(text) {
+    els.matchText.textContent = text;
+    els.popup.classList.add('visible');
+    setTimeout(() => els.popup.classList.remove('visible'), 2000);
+}
+
+// -------- VISUAL EFFECTS --------
+// 1. Mouse Trail
+document.addEventListener('mousemove', (e) => {
+    if (Math.random() > 0.8) { // Throttle particles
+        const p = document.createElement('div');
+        p.className = 'cursor-particle';
+        p.style.left = e.clientX + 'px';
+        p.style.top = e.clientY + 'px';
+        document.body.appendChild(p);
+        setTimeout(() => p.remove(), 1000);
+    }
 });
 
-// ============================================================
-// INIT
-// ============================================================
-createFloatingHearts();
+// 2. Confetti
+function startConfetti() {
+    const container = document.getElementById('confettiContainer');
+    container.innerHTML = ''; // Clear prev
+    const colors = ['#ff4d88', '#8e2de2', '#fccb90', '#ffffff'];
+
+    for (let i = 0; i < 100; i++) {
+        const c = document.createElement('div');
+        c.className = 'confetti';
+        c.style.left = Math.random() * 100 + 'vw';
+        c.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+        c.style.animationDuration = (Math.random() * 2 + 2) + 's';
+        c.style.width = (Math.random() * 8 + 4) + 'px'; // Random size
+        c.style.height = c.style.width;
+        container.appendChild(c);
+    }
+}
+
+// 3. Floating Hearts (Background)
+function initHearts() {
+    const emojis = ['💖', '💕', '💗', '✨', '🌹'];
+    setInterval(() => {
+        const h = document.createElement('div');
+        h.innerText = emojis[Math.floor(Math.random() * emojis.length)];
+        h.style.position = 'fixed';
+        h.style.left = Math.random() * 100 + 'vw';
+        h.style.bottom = '-50px';
+        h.style.fontSize = Math.random() * 20 + 10 + 'px';
+        h.style.opacity = Math.random();
+        h.style.transition = `transform ${Math.random() * 5 + 5}s linear, opacity 5s`;
+        h.style.pointerEvents = 'none'; // Fix click blocking
+        els.heartsBg.appendChild(h);
+
+        // Trigger generic animation via JS to avoid complex CSS keyframes for random values
+        requestAnimationFrame(() => {
+            h.style.transform = `translateY(-110vh) rotate(${Math.random() * 360}deg)`;
+            h.style.opacity = 0;
+        });
+
+        setTimeout(() => h.remove(), 10000);
+    }, 800);
+}
+
+// Start visual effects
+initHearts();
