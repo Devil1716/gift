@@ -15,151 +15,206 @@ const CHECKPOINTS = [
     { name: 'Home', dist: 1.0, color: '#ff4d88', emoji: '🏠' }
 ];
 
-// -------- AUDIO SYSTEM --------
-const Audio = {
-    ctx: null, muted: true,
-    init() { if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)(); },
-    toggle() { if (!this.ctx) this.init(); if (this.ctx.state === 'suspended') this.ctx.resume(); this.muted = !this.muted; return this.muted; },
-    tone(freq, type, dur, vol = 0.08) {
+// -------- POLYFILL roundRect (must be before any drawing) --------
+(function () {
+    if (!CanvasRenderingContext2D.prototype.roundRect) {
+        CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
+            if (typeof r === 'undefined') r = 0;
+            if (typeof r === 'number') r = [r, r, r, r];
+            var tl = r[0], tr = r[1], br = r[2], bl = r[3];
+            this.moveTo(x + tl, y);
+            this.lineTo(x + w - tr, y);
+            this.quadraticCurveTo(x + w, y, x + w, y + tr);
+            this.lineTo(x + w, y + h - br);
+            this.quadraticCurveTo(x + w, y + h, x + w - br, y + h);
+            this.lineTo(x + bl, y + h);
+            this.quadraticCurveTo(x, y + h, x, y + h - bl);
+            this.lineTo(x, y + tl);
+            this.quadraticCurveTo(x, y, x + tl, y);
+            this.closePath();
+            return this;
+        };
+    }
+})();
+
+// -------- AUDIO SYSTEM (renamed to avoid shadowing window.Audio) --------
+var SFX = {
+    ctx: null,
+    muted: true,
+
+    init: function () {
+        if (!this.ctx) {
+            try {
+                this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+            } catch (e) { console.warn('AudioContext not available'); }
+        }
+    },
+
+    toggle: function () {
+        this.init();
+        if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+        this.muted = !this.muted;
+        return this.muted;
+    },
+
+    tone: function (freq, type, dur, vol) {
         if (this.muted || !this.ctx) return;
+        vol = vol || 0.08;
         try {
-            const o = this.ctx.createOscillator(), g = this.ctx.createGain();
-            o.type = type; o.frequency.value = freq;
+            var o = this.ctx.createOscillator();
+            var g = this.ctx.createGain();
+            o.type = type;
+            o.frequency.value = freq;
             g.gain.setValueAtTime(vol, this.ctx.currentTime);
             g.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + dur);
-            o.connect(g); g.connect(this.ctx.destination);
-            o.start(); o.stop(this.ctx.currentTime + dur);
+            o.connect(g);
+            g.connect(this.ctx.destination);
+            o.start();
+            o.stop(this.ctx.currentTime + dur);
         } catch (e) { }
     },
-    checkpoint() { [523, 659, 784].forEach((f, i) => setTimeout(() => this.tone(f, 'sine', 0.5, 0.06), i * 80)); },
-    crash() { this.tone(150, 'sawtooth', 0.3, 0.1); },
-    engine() { this.tone(80, 'triangle', 0.15, 0.01); },
-    win() { [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => this.tone(f, 'sine', 0.7, 0.1), i * 200)); }
+
+    checkpoint: function () {
+        var self = this;
+        [523, 659, 784].forEach(function (f, i) {
+            setTimeout(function () { self.tone(f, 'sine', 0.5, 0.06); }, i * 80);
+        });
+    },
+
+    crash: function () { this.tone(150, 'sawtooth', 0.3, 0.1); },
+    engine: function () { this.tone(80, 'triangle', 0.15, 0.01); },
+
+    win: function () {
+        var self = this;
+        [523, 659, 784, 1047].forEach(function (f, i) {
+            setTimeout(function () { self.tone(f, 'sine', 0.7, 0.1); }, i * 200);
+        });
+    }
 };
 
-// -------- DOM --------
-const $ = id => document.getElementById(id);
-const canvas = $('gameCanvas');
-const ctx = canvas.getContext('2d');
-const journeyFill = $('journeyFill');
-const journeyLabel = $('journeyLabel');
+// -------- DOM HELPERS --------
+function getEl(id) { return document.getElementById(id); }
+
+var canvas = getEl('gameCanvas');
+var canvasCtx = canvas.getContext('2d');
+var journeyFill = getEl('journeyFill');
+var journeyLabel = getEl('journeyLabel');
 
 // -------- GAME CONFIG --------
-const LANE_COUNT = 3;
-const GAME_DURATION = 45; // seconds to reach home
-const OBSTACLE_INTERVAL = 1200; // ms between obstacles
+var LANE_COUNT = 3;
+var GAME_DURATION = 40; // seconds to reach home
 
 // -------- GAME STATE --------
-let game = {
+var game = {
     running: false,
-    width: 0, height: 0,
+    width: 0,
+    height: 0,
     laneWidth: 0,
     roadLeft: 0,
     roadWidth: 0,
     player: { lane: 1, x: 0, y: 0, w: 40, h: 60, targetX: 0 },
     obstacles: [],
     trees: [],
-    roadMarks: [],
     distance: 0,
     maxDistance: 0,
     speed: 3,
     lastObstacle: 0,
     checkpointIndex: 0,
     checkpointBanner: null,
-    keys: { left: false, right: false },
-    animFrame: null,
-    startTime: 0,
-    lastTreeY: 0,
+    animFrame: null
 };
 
 // -------- SIZING --------
 function sizeCanvas() {
-    const maxW = 360, maxH = 560;
-    const parent = canvas.parentElement;
-    const availH = window.innerHeight - 120;
-    const h = Math.min(maxH, availH);
-    const w = Math.min(maxW, parent.clientWidth - 20);
+    var maxW = 380;
+    var maxH = 580;
+    var availW = Math.min(window.innerWidth - 20, maxW);
+    var availH = Math.min(window.innerHeight - 130, maxH);
 
-    canvas.width = w;
-    canvas.height = h;
-    game.width = w;
-    game.height = h;
-    game.roadWidth = w * 0.65;
-    game.roadLeft = (w - game.roadWidth) / 2;
+    canvas.width = availW;
+    canvas.height = availH;
+    game.width = availW;
+    game.height = availH;
+    game.roadWidth = availW * 0.62;
+    game.roadLeft = (availW - game.roadWidth) / 2;
     game.laneWidth = game.roadWidth / LANE_COUNT;
 
-    // Player dimensions
     game.player.w = game.laneWidth * 0.55;
     game.player.h = game.player.w * 1.6;
-    game.player.y = h - game.player.h - 30;
+    game.player.y = availH - game.player.h - 30;
     updatePlayerX();
 }
 
 function updatePlayerX() {
-    const p = game.player;
+    var p = game.player;
     p.targetX = game.roadLeft + p.lane * game.laneWidth + (game.laneWidth - p.w) / 2;
 }
 
 // -------- CONTROLS --------
-document.addEventListener('keydown', e => {
+document.addEventListener('keydown', function (e) {
     if (e.key === 'ArrowLeft') { e.preventDefault(); steerLeft(); }
     if (e.key === 'ArrowRight') { e.preventDefault(); steerRight(); }
 });
 
-$('touchLeft').addEventListener('touchstart', e => { e.preventDefault(); steerLeft(); }, { passive: false });
-$('touchRight').addEventListener('touchstart', e => { e.preventDefault(); steerRight(); }, { passive: false });
-$('touchLeft').addEventListener('mousedown', e => { e.preventDefault(); steerLeft(); });
-$('touchRight').addEventListener('mousedown', e => { e.preventDefault(); steerRight(); });
+var touchLeftBtn = getEl('touchLeft');
+var touchRightBtn = getEl('touchRight');
 
-// Swipe detection on canvas
-let touchStartX = 0;
-canvas.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; }, { passive: true });
-canvas.addEventListener('touchend', e => {
-    const dx = e.changedTouches[0].clientX - touchStartX;
+touchLeftBtn.addEventListener('touchstart', function (e) { e.preventDefault(); steerLeft(); }, { passive: false });
+touchRightBtn.addEventListener('touchstart', function (e) { e.preventDefault(); steerRight(); }, { passive: false });
+touchLeftBtn.addEventListener('mousedown', function (e) { e.preventDefault(); steerLeft(); });
+touchRightBtn.addEventListener('mousedown', function (e) { e.preventDefault(); steerRight(); });
+
+// Swipe on canvas
+var touchStartX = 0;
+canvas.addEventListener('touchstart', function (e) { touchStartX = e.touches[0].clientX; }, { passive: true });
+canvas.addEventListener('touchend', function (e) {
+    var dx = e.changedTouches[0].clientX - touchStartX;
     if (Math.abs(dx) > 30) { dx < 0 ? steerLeft() : steerRight(); }
 }, { passive: true });
 
 function steerLeft() {
     if (!game.running) return;
-    if (game.player.lane > 0) { game.player.lane--; updatePlayerX(); Audio.tone(300, 'sine', 0.1, 0.03); }
+    if (game.player.lane > 0) {
+        game.player.lane--;
+        updatePlayerX();
+        SFX.tone(300, 'sine', 0.1, 0.03);
+    }
 }
 
 function steerRight() {
     if (!game.running) return;
-    if (game.player.lane < LANE_COUNT - 1) { game.player.lane++; updatePlayerX(); Audio.tone(350, 'sine', 0.1, 0.03); }
+    if (game.player.lane < LANE_COUNT - 1) {
+        game.player.lane++;
+        updatePlayerX();
+        SFX.tone(350, 'sine', 0.1, 0.03);
+    }
 }
 
-// -------- INIT GAME --------
+// -------- START GAME --------
 function startGame() {
     sizeCanvas();
+
     game.running = true;
     game.distance = 0;
-    game.maxDistance = GAME_DURATION * 60; // 60fps * seconds
+    game.maxDistance = GAME_DURATION * 60;
     game.speed = 3;
     game.obstacles = [];
     game.trees = [];
-    game.roadMarks = [];
     game.player.lane = 1;
     game.checkpointIndex = 0;
     game.checkpointBanner = null;
     game.lastObstacle = 0;
-    game.startTime = Date.now();
     updatePlayerX();
     game.player.x = game.player.targetX;
 
-    // Pre-fill road marks
-    for (let y = -20; y < game.height; y += 40) {
-        game.roadMarks.push({ y });
-    }
-
     // Pre-fill trees
-    for (let y = -30; y < game.height; y += 80) {
-        game.trees.push({ x: game.roadLeft - 25 - Math.random() * 20, y, side: 'left' });
-        game.trees.push({ x: game.roadLeft + game.roadWidth + 5 + Math.random() * 20, y, side: 'right' });
+    for (var y = -30; y < game.height; y += 80) {
+        game.trees.push({ x: game.roadLeft - 25 - Math.random() * 20, y: y });
+        game.trees.push({ x: game.roadLeft + game.roadWidth + 5 + Math.random() * 20, y: y });
     }
 
     journeyFill.style.width = '0%';
-    journeyLabel.textContent = `🚗 Starting from ${CHECKPOINTS[0].name}...`;
+    journeyLabel.textContent = '🚗 Starting from MG Road...';
 
     if (game.animFrame) cancelAnimationFrame(game.animFrame);
     loop();
@@ -175,22 +230,22 @@ function loop() {
 
 function update() {
     game.distance++;
-    const progress = Math.min(game.distance / game.maxDistance, 1);
+    var progress = Math.min(game.distance / game.maxDistance, 1);
 
     // Speed ramp
     game.speed = 3 + progress * 3;
 
-    // Update journey UI
+    // Journey UI
     journeyFill.style.width = (progress * 100) + '%';
 
-    // Check checkpoint
-    for (let i = game.checkpointIndex; i < CHECKPOINTS.length; i++) {
+    // Checkpoints
+    for (var i = game.checkpointIndex; i < CHECKPOINTS.length; i++) {
         if (progress >= CHECKPOINTS[i].dist && i > game.checkpointIndex) {
             game.checkpointIndex = i;
-            const cp = CHECKPOINTS[i];
-            journeyLabel.textContent = `${cp.emoji} Passing through ${cp.name}...`;
+            var cp = CHECKPOINTS[i];
+            journeyLabel.textContent = cp.emoji + ' Passing through ' + cp.name + '...';
             game.checkpointBanner = { text: cp.name, emoji: cp.emoji, color: cp.color, alpha: 1 };
-            Audio.checkpoint();
+            SFX.checkpoint();
         }
     }
 
@@ -200,31 +255,27 @@ function update() {
         if (game.checkpointBanner.alpha <= 0) game.checkpointBanner = null;
     }
 
-    // Road marks scroll
-    game.roadMarks.forEach(m => m.y += game.speed);
-    if (game.roadMarks.length && game.roadMarks[0].y > game.height + 20) {
-        game.roadMarks.shift();
-        game.roadMarks.push({ y: game.roadMarks[game.roadMarks.length - 1].y - 40 });
-    }
-
     // Trees scroll
-    game.trees.forEach(t => t.y += game.speed * 0.8);
-    game.trees = game.trees.filter(t => t.y < game.height + 50);
-    if (game.trees.length < 20) {
-        const lastY = game.trees.reduce((min, t) => Math.min(min, t.y), 0);
-        game.trees.push({ x: game.roadLeft - 25 - Math.random() * 20, y: lastY - 60 - Math.random() * 40, side: 'left' });
-        game.trees.push({ x: game.roadLeft + game.roadWidth + 5 + Math.random() * 20, y: lastY - 60 - Math.random() * 40, side: 'right' });
+    for (var t = 0; t < game.trees.length; t++) {
+        game.trees[t].y += game.speed * 0.8;
+    }
+    game.trees = game.trees.filter(function (t) { return t.y < game.height + 50; });
+    if (game.trees.length < 16) {
+        var minY = game.trees.reduce(function (m, t) { return Math.min(m, t.y); }, 0);
+        game.trees.push({ x: game.roadLeft - 25 - Math.random() * 20, y: minY - 60 - Math.random() * 40 });
+        game.trees.push({ x: game.roadLeft + game.roadWidth + 5 + Math.random() * 20, y: minY - 60 - Math.random() * 40 });
     }
 
     // Spawn obstacles
-    if (game.distance - game.lastObstacle > (OBSTACLE_INTERVAL / 16) / (game.speed / 3)) {
+    var spawnInterval = 60 + Math.max(20, 50 - progress * 30);
+    if (game.distance - game.lastObstacle > spawnInterval) {
         game.lastObstacle = game.distance;
-        const lane = Math.floor(Math.random() * LANE_COUNT);
-        const colors = ['#e74c3c', '#3498db', '#f39c12', '#2ecc71', '#9b59b6'];
+        var lane = Math.floor(Math.random() * LANE_COUNT);
+        var colors = ['#e74c3c', '#3498db', '#f39c12', '#2ecc71', '#9b59b6'];
         game.obstacles.push({
-            lane,
+            lane: lane,
             x: game.roadLeft + lane * game.laneWidth + (game.laneWidth - game.player.w * 0.9) / 2,
-            y: -60,
+            y: -70,
             w: game.player.w * 0.9,
             h: game.player.h * 0.85,
             color: colors[Math.floor(Math.random() * colors.length)]
@@ -232,35 +283,36 @@ function update() {
     }
 
     // Move obstacles
-    game.obstacles.forEach(o => o.y += game.speed * 0.7);
-    game.obstacles = game.obstacles.filter(o => o.y < game.height + 80);
+    for (var o = 0; o < game.obstacles.length; o++) {
+        game.obstacles[o].y += game.speed * 0.7;
+    }
+    game.obstacles = game.obstacles.filter(function (o) { return o.y < game.height + 80; });
 
     // Player smooth movement
-    const p = game.player;
+    var p = game.player;
     p.x += (p.targetX - p.x) * 0.2;
 
-    // Collision check
-    game.obstacles.forEach(o => {
-        if (rectsOverlap(p.x, p.y, p.w, p.h, o.x, o.y, o.w, o.h)) {
-            // Push obstacle aside instead of game over (forgiving)
-            o.y = p.y + p.h + 10;
-            Audio.crash();
-            // Slow down briefly
+    // Collision (forgiving)
+    for (var j = 0; j < game.obstacles.length; j++) {
+        var ob = game.obstacles[j];
+        if (rectsOverlap(p.x, p.y, p.w, p.h, ob.x, ob.y, ob.w, ob.h)) {
+            ob.y = p.y + p.h + 10;
+            SFX.crash();
             game.speed = Math.max(2, game.speed - 1);
         }
-    });
+    }
 
-    // Engine sound occasionally
-    if (game.distance % 30 === 0) Audio.engine();
+    // Engine sound
+    if (game.distance % 30 === 0) SFX.engine();
 
-    // Win condition
+    // Win
     if (progress >= 1) {
         game.running = false;
-        cancelAnimationFrame(game.animFrame);
+        if (game.animFrame) cancelAnimationFrame(game.animFrame);
         journeyLabel.textContent = '🏠 You made it Home! 💕';
-        setTimeout(() => {
+        setTimeout(function () {
             switchScreen('finale');
-            Audio.win();
+            SFX.win();
             launchConfetti();
         }, 800);
     }
@@ -272,11 +324,12 @@ function rectsOverlap(x1, y1, w1, h1, x2, y2, w2, h2) {
 
 // -------- DRAW --------
 function draw() {
-    const c = ctx;
-    const W = game.width, H = game.height;
+    var c = canvasCtx;
+    var W = game.width;
+    var H = game.height;
 
-    // Sky gradient
-    const sky = c.createLinearGradient(0, 0, 0, H);
+    // Sky
+    var sky = c.createLinearGradient(0, 0, 0, H);
     sky.addColorStop(0, '#1a1a2e');
     sky.addColorStop(0.3, '#16213e');
     sky.addColorStop(1, '#0f3460');
@@ -285,33 +338,33 @@ function draw() {
 
     // Stars
     c.fillStyle = 'rgba(255,255,255,0.5)';
-    for (let i = 0; i < 30; i++) {
-        const sx = (i * 137.5 + game.distance * 0.01) % W;
-        const sy = (i * 73.1) % (H * 0.3);
+    for (var i = 0; i < 30; i++) {
+        var sx = (i * 137.5 + game.distance * 0.01) % W;
+        var sy = (i * 73.1) % (H * 0.3);
         c.fillRect(sx, sy, 1.5, 1.5);
     }
 
     // Grass
     c.fillStyle = '#1a472a';
     c.fillRect(0, 0, game.roadLeft, H);
-    c.fillRect(game.roadLeft + game.roadWidth, 0, W, H);
+    c.fillRect(game.roadLeft + game.roadWidth, 0, W - game.roadLeft - game.roadWidth, H);
 
     // Road
     c.fillStyle = '#2c2c2c';
     c.fillRect(game.roadLeft, 0, game.roadWidth, H);
 
-    // Road edges (white lines)
+    // Road edges
     c.strokeStyle = '#ffffff';
     c.lineWidth = 3;
     c.beginPath(); c.moveTo(game.roadLeft, 0); c.lineTo(game.roadLeft, H); c.stroke();
     c.beginPath(); c.moveTo(game.roadLeft + game.roadWidth, 0); c.lineTo(game.roadLeft + game.roadWidth, H); c.stroke();
 
-    // Lane dividers (dashed)
+    // Lane dividers (animated dashes)
     c.strokeStyle = 'rgba(255,255,255,0.4)';
     c.lineWidth = 2;
     c.setLineDash([20, 15]);
-    for (let i = 1; i < LANE_COUNT; i++) {
-        const lx = game.roadLeft + i * game.laneWidth;
+    for (var li = 1; li < LANE_COUNT; li++) {
+        var lx = game.roadLeft + li * game.laneWidth;
         c.beginPath();
         c.moveTo(lx, (game.distance * game.speed) % 35 - 35);
         c.lineTo(lx, H);
@@ -320,64 +373,64 @@ function draw() {
     c.setLineDash([]);
 
     // Trees
-    game.trees.forEach(t => {
-        // Trunk
+    for (var ti = 0; ti < game.trees.length; ti++) {
+        var tr = game.trees[ti];
         c.fillStyle = '#5d4037';
-        c.fillRect(t.x + 7, t.y + 12, 6, 12);
-        // Foliage
+        c.fillRect(tr.x + 7, tr.y + 12, 6, 12);
         c.fillStyle = '#2e7d32';
         c.beginPath();
-        c.arc(t.x + 10, t.y + 8, 12, 0, Math.PI * 2);
+        c.arc(tr.x + 10, tr.y + 8, 12, 0, Math.PI * 2);
         c.fill();
-        // Highlight
         c.fillStyle = '#43a047';
         c.beginPath();
-        c.arc(t.x + 8, t.y + 5, 6, 0, Math.PI * 2);
+        c.arc(tr.x + 8, tr.y + 5, 6, 0, Math.PI * 2);
         c.fill();
-    });
+    }
 
-    // Obstacles (other cars)
-    game.obstacles.forEach(o => {
-        drawCar(c, o.x, o.y, o.w, o.h, o.color, false);
-    });
+    // Obstacle cars
+    for (var oi = 0; oi < game.obstacles.length; oi++) {
+        var ob = game.obstacles[oi];
+        drawCar(c, ob.x, ob.y, ob.w, ob.h, ob.color, false);
+    }
 
     // Player car
     drawCar(c, game.player.x, game.player.y, game.player.w, game.player.h, '#ff4d88', true);
 
     // Checkpoint banner
     if (game.checkpointBanner) {
-        const b = game.checkpointBanner;
+        var b = game.checkpointBanner;
         c.save();
         c.globalAlpha = b.alpha;
-        c.fillStyle = b.color;
-        c.font = `bold ${Math.min(28, W * 0.08)}px 'Outfit', sans-serif`;
+        c.font = 'bold ' + Math.min(24, W * 0.07) + 'px Outfit, Poppins, sans-serif';
         c.textAlign = 'center';
         c.textBaseline = 'middle';
 
-        // Banner background
-        const bannerY = H * 0.3;
-        c.fillStyle = 'rgba(0,0,0,0.6)';
-        const textW = c.measureText(`${b.emoji} ${b.text}`).width + 40;
-        c.roundRect(W / 2 - textW / 2, bannerY - 22, textW, 44, 12);
+        var bannerY = H * 0.28;
+        var bannerText = b.emoji + ' ' + b.text;
+        var tw = c.measureText(bannerText).width + 40;
+
+        // Background
+        c.fillStyle = 'rgba(0,0,0,0.7)';
+        c.beginPath();
+        c.roundRect(W / 2 - tw / 2, bannerY - 22, tw, 44, 12);
         c.fill();
 
-        // Banner border
+        // Border
         c.strokeStyle = b.color;
         c.lineWidth = 2;
-        c.roundRect(W / 2 - textW / 2, bannerY - 22, textW, 44, 12);
+        c.beginPath();
+        c.roundRect(W / 2 - tw / 2, bannerY - 22, tw, 44, 12);
         c.stroke();
 
-        // Banner text
-        c.fillStyle = '#fff';
-        c.fillText(`${b.emoji} ${b.text}`, W / 2, bannerY);
+        // Text
+        c.fillStyle = '#ffffff';
+        c.fillText(bannerText, W / 2, bannerY);
         c.restore();
     }
 }
 
 function drawCar(c, x, y, w, h, color, isPlayer) {
-    c.save();
-
-    // Car body
+    // Body
     c.fillStyle = color;
     c.beginPath();
     c.roundRect(x, y, w, h, 8);
@@ -385,14 +438,13 @@ function drawCar(c, x, y, w, h, color, isPlayer) {
 
     // Windshield
     c.fillStyle = isPlayer ? 'rgba(200,230,255,0.6)' : 'rgba(200,230,255,0.4)';
-    const wsY = isPlayer ? y + h * 0.15 : y + h * 0.55;
+    var wsY = isPlayer ? y + h * 0.15 : y + h * 0.55;
     c.beginPath();
     c.roundRect(x + w * 0.15, wsY, w * 0.7, h * 0.22, 4);
     c.fill();
 
-    // Headlights / taillights
+    // Lights
     if (isPlayer) {
-        // Headlights (top of car, since we're driving up)
         c.fillStyle = '#fff';
         c.shadowColor = '#fff';
         c.shadowBlur = 8;
@@ -400,7 +452,6 @@ function drawCar(c, x, y, w, h, color, isPlayer) {
         c.fillRect(x + w - 3 - w * 0.2, y + 2, w * 0.2, 4);
         c.shadowBlur = 0;
     } else {
-        // Taillights (top since cars are coming down)
         c.fillStyle = '#ff0000';
         c.shadowColor = '#ff0000';
         c.shadowBlur = 6;
@@ -409,26 +460,25 @@ function drawCar(c, x, y, w, h, color, isPlayer) {
         c.shadowBlur = 0;
     }
 
-    // Side stripe
+    // Stripe
     c.fillStyle = 'rgba(255,255,255,0.15)';
     c.fillRect(x + 2, y + h * 0.4, w - 4, 3);
-
-    c.restore();
 }
 
 // -------- SCREENS --------
 function switchScreen(name) {
-    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-    $(`${name === 'intro' ? 'intro' : name === 'game' ? 'game' : 'finale'}Screen`).classList.add('active');
+    document.querySelectorAll('.screen').forEach(function (s) { s.classList.remove('active'); });
+    var id = name + 'Screen';
+    getEl(id).classList.add('active');
 }
 
 // -------- CONFETTI --------
 function launchConfetti() {
-    const container = $('confettiContainer');
+    var container = getEl('confettiContainer');
     container.innerHTML = '';
-    const colors = ['#ff4d88', '#8e2de2', '#fccb90', '#fff', '#26de81', '#fed330'];
-    for (let i = 0; i < 100; i++) {
-        const p = document.createElement('div');
+    var colors = ['#ff4d88', '#8e2de2', '#fccb90', '#fff', '#26de81', '#fed330'];
+    for (var i = 0; i < 100; i++) {
+        var p = document.createElement('div');
         p.className = 'confetti-piece';
         p.style.left = Math.random() * 100 + '%';
         p.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
@@ -442,56 +492,49 @@ function launchConfetti() {
 
 // -------- FLOATING HEARTS --------
 function initHearts() {
-    const bg = $('heartsBg');
-    const emojis = ['💖', '💕', '💗', '✨', '🌹'];
-    setInterval(() => {
-        const h = document.createElement('span');
+    var bg = getEl('heartsBg');
+    var emojis = ['💖', '💕', '💗', '✨', '🌹'];
+    setInterval(function () {
+        var h = document.createElement('span');
         h.textContent = emojis[Math.floor(Math.random() * emojis.length)];
-        h.style.cssText = `position:fixed;left:${Math.random() * 100}vw;bottom:-40px;font-size:${10 + Math.random() * 16}px;opacity:${0.3 + Math.random() * 0.4};transition:transform ${6 + Math.random() * 6}s linear,opacity 6s;pointer-events:none;`;
+        h.style.cssText = 'position:fixed;left:' + (Math.random() * 100) + 'vw;bottom:-40px;font-size:' + (10 + Math.random() * 16) + 'px;opacity:' + (0.3 + Math.random() * 0.4) + ';transition:transform ' + (6 + Math.random() * 6) + 's linear,opacity 6s;pointer-events:none;';
         bg.appendChild(h);
-        requestAnimationFrame(() => {
-            h.style.transform = `translateY(-110vh) rotate(${Math.random() * 360}deg)`;
+        requestAnimationFrame(function () {
+            h.style.transform = 'translateY(-110vh) rotate(' + (Math.random() * 360) + 'deg)';
             h.style.opacity = '0';
         });
-        setTimeout(() => h.remove(), 12000);
+        setTimeout(function () { h.remove(); }, 12000);
     }, 1000);
 }
 
-// -------- INIT --------
-$('soundToggle').addEventListener('click', () => {
-    const m = Audio.toggle();
-    $('soundToggle').textContent = m ? '🔇' : '🔊';
+// -------- EVENT LISTENERS --------
+getEl('soundToggle').addEventListener('click', function () {
+    var m = SFX.toggle();
+    getEl('soundToggle').textContent = m ? '🔇' : '🔊';
 });
 
-$('envelopeBtn').addEventListener('click', () => {
-    Audio.tone(600, 'sine', 0.15, 0.05);
-    $('envelope').classList.add('open');
-    setTimeout(() => {
+getEl('envelopeBtn').addEventListener('click', function () {
+    SFX.tone(600, 'sine', 0.15, 0.05);
+    getEl('envelope').classList.add('open');
+    setTimeout(function () {
         switchScreen('game');
-        startGame();
+        // Delay startGame to ensure the screen is visible and laid out
+        setTimeout(function () {
+            startGame();
+        }, 100);
     }, 1000);
 });
 
-$('replayBtn').addEventListener('click', () => {
+getEl('replayBtn').addEventListener('click', function () {
     switchScreen('game');
-    startGame();
+    setTimeout(function () {
+        startGame();
+    }, 100);
 });
 
-window.addEventListener('resize', () => { if (game.running) sizeCanvas(); });
+window.addEventListener('resize', function () {
+    if (game.running) sizeCanvas();
+});
 
-// Polyfill roundRect for older browsers
-if (!CanvasRenderingContext2D.prototype.roundRect) {
-    CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
-        if (typeof r === 'number') r = [r, r, r, r];
-        const [tl, tr, br, bl] = r;
-        this.moveTo(x + tl, y);
-        this.lineTo(x + w - tr, y); this.quadraticCurveTo(x + w, y, x + w, y + tr);
-        this.lineTo(x + w, y + h - br); this.quadraticCurveTo(x + w, y + h, x + w - br, y + h);
-        this.lineTo(x + bl, y + h); this.quadraticCurveTo(x, y + h, x, y + h - bl);
-        this.lineTo(x, y + tl); this.quadraticCurveTo(x, y, x + tl, y);
-        this.closePath();
-        return this;
-    };
-}
-
+// Start background effects
 initHearts();
