@@ -597,8 +597,17 @@ function initMemoryGame() {
         // Using image for front, card back for back.
         // CSS flip: .front-face (photo) needs to be rotated 180 initially in CSS? Yes.
         // We append them.
-        var front = document.createElement('img'); front.className = 'front-face'; front.src = src;
-        front.onerror = function () { this.style.display = 'none'; this.parentNode.innerHTML += '<div class="front-face" style="background:#fff; color:#333; display:flex; align-items:center; justify-content:center;">Photo</div>'; };
+        var front = document.createElement('img'); front.className = 'front-face';
+        // Remove 'photos/' prefix if it's already there to avoid double path
+        var finalSrc = src;
+        if (src.indexOf('photos/') === -1) finalSrc = 'photos/' + src;
+        front.src = finalSrc;
+
+        front.onerror = function () {
+            console.log('Failed to load:', this.src);
+            this.style.display = 'none';
+            this.parentNode.innerHTML += '<div class="front-face" style="background:#fff; color:#333; display:flex; align-items:center; justify-content:center; font-size:10px; text-align:center;">' + finalSrc + '</div>';
+        };
         var back = document.createElement('div'); back.className = 'back-face'; back.innerHTML = '❤️';
         card.appendChild(front); card.appendChild(back);
         card.addEventListener('click', flipCard);
