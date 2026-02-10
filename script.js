@@ -265,12 +265,16 @@ function update() {
     game.playerX += game.playerSpeedX * dt * 0.002;
 
     // Acceleration
-    if (keys.up || touch.up) game.speed += game.accel * dt * 120;
-    else if (keys.down || touch.down) game.speed -= game.decel * dt * 120;
-    else game.speed -= game.decel * dt * 60;
+    var accel = game.maxSpeed * game.accel;
+    if (keys.up || touch.up) game.speed += accel * dt * 60;
+    else if (keys.down || touch.down) game.speed -= game.decel * dt * 60;
+    else game.speed -= game.decel * dt * 20;
+
+    // Auto-coast helper (if speed is very low, give a nudge)
+    if (game.speed < 500 && !keys.down && !touch.down) game.speed += accel * dt * 30;
 
     game.playerX -= (game.playerSpeedX * game.speed * dt * 0.00001); // Centrifugal
-    game.position += game.speed * dt * 0.5; // Move player (half speed for scale feel)
+    game.position += game.speed * dt; // Move player (half speed removed)
     if (game.position >= game.totalLength) game.position -= game.totalLength;
     if (game.position < 0) game.position += game.totalLength;
 
