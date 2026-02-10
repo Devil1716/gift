@@ -157,8 +157,8 @@ function buildRoad() {
 
     // Traffic (Types: car, auto, bus)
     game.cars = [];
-    for (var j = 0; j < 50; j++) {
-        var z = 3000 + Math.random() * (game.totalLength - 5000);
+    for (var j = 0; j < 500; j++) {
+        var z = 2000 + Math.random() * (game.totalLength - 4000);
         var type = Math.random();
         var carType = 'car';
         if (type > 0.7) carType = 'auto'; // 30% autos
