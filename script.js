@@ -153,6 +153,8 @@ function buildRoad() {
         }
         game.segments.push(seg);
     }
+    // Add House at the end
+    game.segments[n - 50].sprites.push({ x: 0, type: 'house' });
     game.totalLength = n * ROAD.SEG_LENGTH;
 
     // Traffic (Types: car, auto, bus)
@@ -328,7 +330,7 @@ function update() {
     if (progress >= 1) {
         game.running = false;
         getEl('journeyLabel').textContent = '🏠 Home Sweet Home!';
-        setTimeout(function () { switchScreen('finale'); SFX.win(); launchConfetti(); }, 800);
+        setTimeout(function () { switchScreen('cardGame'); initMemoryGame(); SFX.win(); }, 800);
     }
 
     // Thunder
@@ -409,6 +411,7 @@ function render() {
             var sx = sInfo.x + s.x * sInfo.w;
             var sScale = sInfo.w;
             if (s.type === 'tree') drawTree(c, sx, sInfo.y, sScale);
+            else if (s.type === 'house') drawHouse(c, sx, sInfo.y, sScale);
             else if (s.type === 'billboard') drawBillboard(c, sx, sInfo.y, sScale, s.img);
             else if (s.type === 'heart') drawHeart(c, sx, sInfo.y, sScale);
             else if (s.type === 'sign') drawSign(c, sx, sInfo.y, sScale, s.text, s.color, s.emoji);
@@ -515,6 +518,14 @@ function drawPlayer(c, W, H) {
     c.fillStyle = '#fff'; c.shadowColor = '#fff'; c.shadowBlur = 10;
     c.fillRect(x - w * 0.4, y - h * 0.3, w * 0.15, h * 0.15); c.fillRect(x + w * 0.25, y - h * 0.3, w * 0.15, h * 0.15); c.shadowBlur = 0;
 }
+function drawHouse(c, x, y, s) {
+    var w = s * 2.5, h = s * 2.0;
+    c.fillStyle = '#fce4ec'; c.fillRect(x - w / 2, y - h, w, h);
+    c.fillStyle = '#ad1457'; c.beginPath(); c.moveTo(x - w * 0.6, y - h); c.lineTo(x, y - h * 1.6); c.lineTo(x + w * 0.6, y - h); c.fill();
+    c.fillStyle = '#880e4f'; c.fillRect(x - w * 0.15, y - h * 0.4, w * 0.3, h * 0.4);
+    c.fillStyle = '#fff'; c.font = 'bold ' + Math.floor(s * 0.2) + 'px Arial'; c.textAlign = 'center';
+    c.fillText('HOME SWEET HOME', x, y - h * 1.7);
+}
 function drawBanner(c, W, H, b) {
     var d = b.emoji + ' ' + b.text;
     c.font = (W < H ? 'bold 8vw' : 'bold 4vw') + ' Outfit';
@@ -539,3 +550,61 @@ function init() {
     getEl('replayBtn').onclick = function () { switchScreen('game'); setTimeout(startGame, 500); };
 }
 init();
+
+// -------- MEMORY GAME --------
+var hasFlippedCard = false, lockBoard = false, firstCard, secondCard;
+function initMemoryGame() {
+    var photos = CONFIG.billboardPhotos.concat(CONFIG.billboardPhotos); // Duplicate to make pairs
+    if (photos.length < 12) { // Fill to 12 if needed
+        while (photos.length < 12) photos = photos.concat(CONFIG.billboardPhotos);
+        photos = photos.slice(0, 12);
+    }
+    photos.sort(function () { return 0.5 - Math.random() }); // Shuffle
+    var gameGrid = getEl('memoryGame');
+    gameGrid.innerHTML = '';
+    photos.forEach(function (src) {
+        var card = document.createElement('div');
+        card.classList.add('memory-card');
+        card.dataset.name = src;
+        // Using image for front, card back for back.
+        // CSS flip: .front-face (photo) needs to be rotated 180 initially in CSS? Yes.
+        // We append them.
+        var front = document.createElement('img'); front.className = 'front-face'; front.src = 'photos/' + src;
+        front.onerror = function () { this.style.display = 'none'; this.parentNode.innerHTML += '<div class="front-face" style="background:#fff; color:#333; display:flex; align-items:center; justify-content:center;">Photo</div>'; };
+        var back = document.createElement('div'); back.className = 'back-face'; back.innerHTML = '❤️';
+        card.appendChild(front); card.appendChild(back);
+        card.addEventListener('click', flipCard);
+        gameGrid.appendChild(card);
+    });
+}
+function flipCard() {
+    if (lockBoard) return;
+    if (this === firstCard) return;
+    this.classList.add('flip');
+    if (!hasFlippedCard) { hasFlippedCard = true; firstCard = this; return; }
+    secondCard = this;
+    checkForMatch();
+}
+function checkForMatch() {
+    var isMatch = firstCard.dataset.name === secondCard.dataset.name;
+    isMatch ? disableCards() : unflipCards();
+}
+function disableCards() {
+    firstCard.removeEventListener('click', flipCard);
+    secondCard.removeEventListener('click', flipCard);
+    resetBoard();
+    if (document.querySelectorAll('.memory-card.flip').length === document.querySelectorAll('.memory-card').length) {
+        setTimeout(function () { switchScreen('finale'); launchConfetti(); SFX.win(); }, 1000); // Finale ID is finaleScreen, so use 'finale'
+    }
+}
+function unflipCards() {
+    lockBoard = true;
+    setTimeout(function () {
+        firstCard.classList.remove('flip');
+        secondCard.classList.remove('flip');
+        resetBoard();
+    }, 1000);
+}
+function resetBoard() {
+    hasFlippedCard = false; lockBoard = false; firstCard = null; secondCard = null;
+}
