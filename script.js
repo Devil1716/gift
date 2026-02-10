@@ -38,16 +38,13 @@ function loadImages() {
 }
 
 // -------- CHECKPOINTS --------
+// -------- CHECKPOINTS --------
 var CHECKPOINTS = [
-    { name: 'MG Road', dist: 0, color: '#ff6b6b', emoji: '🏙️' },
-    { name: 'Brigade Road', dist: 0.12, color: '#f39c12', emoji: '🛍️' },
-    { name: 'Cubbon Park', dist: 0.25, color: '#26de81', emoji: '🌳' },
-    { name: 'Vidhana Soudha', dist: 0.37, color: '#f1c40f', emoji: '🏛️' },
-    { name: 'Lalbagh', dist: 0.50, color: '#e74c3c', emoji: '🌺' },
-    { name: 'Koramangala', dist: 0.62, color: '#9b59b6', emoji: '☕' },
-    { name: 'Indiranagar', dist: 0.75, color: '#e67e22', emoji: '🎶' },
-    { name: 'JP Nagar', dist: 0.87, color: '#3498db', emoji: '🌆' },
-    { name: 'Home', dist: 1.0, color: '#ff4d88', emoji: '🏠' }
+    { dist: 0.15, name: 'Lalbagh', emoji: '🌳', color: '#2ecc71' },
+    { dist: 0.35, name: 'Town Hall', emoji: '🏛️', color: '#e67e22' },
+    { dist: 0.55, name: 'Malleshwaram', emoji: '🌸', color: '#9b59b6' },
+    { dist: 0.75, name: 'Yeshwanthpur', emoji: '🚉', color: '#f1c40f' },
+    { dist: 0.95, name: 'Jalahalli', emoji: '🏠', color: '#e74c3c' }
 ];
 
 // -------- AUDIO --------
@@ -98,29 +95,23 @@ var game = {
 
 // -------- BUILD ROAD --------
 function buildRoad() {
+
+    var n = 6000; // Road length
     game.segments = [];
-    var n = ROAD.LENGTH;
     for (var i = 0; i < n; i++) {
         var seg = {
             index: i,
-            p1: { world: { z: i * ROAD.SEG_LENGTH }, camera: {}, screen: {} },
-            p2: { world: { z: (i + 1) * ROAD.SEG_LENGTH }, camera: {}, screen: {} },
-            curve: 0, hill: 0,
-            color: {
-                road: (Math.floor(i / 4) % 2 === 0) ? '#333' : '#363636',
-                grass: (Math.floor(i / 4) % 2 === 0) ? '#113311' : '#164416',
-                rumble: (Math.floor(i / 4) % 2 === 0) ? '#cc0000' : '#eeeeee'
-            },
-            sprites: []
+            p1: { world: { y: 0, z: i * ROAD.SEG_LENGTH }, camera: {}, screen: {} },
+            p2: { world: { y: 0, z: (i + 1) * ROAD.SEG_LENGTH }, camera: {}, screen: {} },
+            curve: 0, hill: 0, sprites: [],
+            color: Math.floor(i / ROAD.RUMBLE_LENGTH) % 2 ? ROAD.DARK : ROAD.LIGHT
         };
 
-        // Curves & Hills
-        if (i > 100 && i < 300) seg.curve = 1.5;
-        if (i > 400 && i < 600) seg.curve = -2.0;
-        if (i > 700 && i < 900) seg.curve = 2.0; seg.hill = i > 700 && i < 900 ? 40 : 0;
+        // Curves & Hills (Map roughly to route)
+        if (i > 700 && i < 900) seg.curve = 2.0; seg.hill = i > 700 && i < 900 ? 40 : 0; // Lalbagh Hill
         if (i > 1100 && i < 1300) seg.curve = -1.5;
         if (i > 1500 && i < 1800) seg.curve = 2.5; seg.hill = i > 1500 && i < 1800 ? -40 : 0;
-        if (i > 2000 && i < 2300) seg.curve = -3.0;
+        if (i > 2000 && i < 2300) seg.curve = -3.0; // Malleshwaram Winding
         if (i > 2500 && i < 2800) seg.curve = 1.5;
         if (i > 3200 && i < 3500) seg.curve = -1.0;
         if (i > 3800 && i < 4100) seg.curve = 3.0;
@@ -132,7 +123,7 @@ function buildRoad() {
             seg.sprites.push({ x: 1.3 + Math.random() * 0.8, type: 'tree' });
         }
 
-        // Billboards (every 100 segments)
+        // Billboards (every 150 segments)
         if (i % 150 === 0 && i > 50) {
             var photoIdx = Math.floor(i / 150) % CONFIG.billboardPhotos.length;
             var photoSrc = CONFIG.billboardPhotos[photoIdx];
@@ -159,7 +150,7 @@ function buildRoad() {
 
     // Traffic (Types: car, auto, bus)
     game.cars = [];
-    for (var j = 0; j < 500; j++) {
+    for (var j = 0; j < 250; j++) { // Reduced traffic
         var z = 2000 + Math.random() * (game.totalLength - 4000);
         var lane = Math.floor(Math.random() * 3); // 0, 1, 2
         var laneX = (lane === 0) ? -0.6 : (lane === 1) ? 0 : 0.6;
