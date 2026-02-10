@@ -88,7 +88,7 @@ var game = {
     segments: [],
     playerX: 0, playerSpeedX: 0,
     position: 0, speed: 0, maxSpeed: ROAD.SEG_LENGTH * 120, // Turbo Speed
-    accel: 0.01, decel: 0.04, offRoadDecel: 0.08, centrifugal: 0.18,
+    accel: 0.015, decel: 0.04, offRoadDecel: 0.08, centrifugal: 0.18,
     cars: [],
     score: 0,
     checkpointIndex: 0, checkpointBanner: null,
@@ -165,7 +165,7 @@ function buildRoad() {
         game.cars.push({
             z: z,
             x: laneX + (Math.random() * 0.1 - 0.05), // slight jitter
-            speed: game.maxSpeed * (0.2 + Math.random() * 0.3),
+            speed: game.maxSpeed * (0.05 + Math.random() * 0.25), // Much slower traffic (5% - 30% of max)
             type: carType,
             color: j % 4 === 0 ? '#e74c3c' : j % 4 === 1 ? '#3498db' : j % 4 === 2 ? '#f1c40f' : '#fff'
         });
