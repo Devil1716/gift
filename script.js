@@ -248,67 +248,44 @@ function update() {
     var dt = 1 / 60;
     var speedPct = game.speed / game.maxSpeed;
 
+    // Traffic AI
+    for (var i = 0; i < game.cars.length; i++) {
+        var car = game.cars[i];
+        car.z += car.speed * dt;
+        if (car.z > game.totalLength) car.z -= game.totalLength; // Loop
+        if (car.z < 0) car.z += game.totalLength;
+    }
+
     // Steering
     var steer = 0;
     if (keys.left || touch.left) steer = -1;
     if (keys.right || touch.right) steer = 1;
-    game.playerSpeedX += steer * 0.1;
-    game.playerSpeedX *= 0.92;
-    game.playerX += game.playerSpeedX * speedPct * 0.08;
 
-    // Auto accelerate + Physics
-    game.speed += game.maxSpeed * game.accel;
-    var seg = findSegment(game.position);
-    if ((game.playerX < -1 || game.playerX > 1) && speedPct > 0.3) {
-        game.speed -= game.speed * game.offRoadDecel;
-        if (game.playerX < -1) game.playerX = -1.05;
-        if (game.playerX > 1) game.playerX = 1.05;
-    }
-    game.playerX -= seg.curve * game.centrifugal * speedPct * speedPct * dt * 4;
-    game.speed = Math.max(0, Math.min(game.speed, game.maxSpeed));
-    game.position += game.speed * dt;
+    game.playerSpeedX = steer * 200 * speedPct;
+    game.playerX += game.playerSpeedX * dt * 0.002;
 
-    // Collisions
-    var playerZ = cameraHeight * cameraDepth;
-    var playerSeg = findSegment(game.position + playerZ);
+    // Acceleration
+    if (keys.up || touch.up) game.speed += game.accel * dt * 120;
+    else if (keys.down || touch.down) game.speed -= game.decel * dt * 120;
+    else game.speed -= game.decel * dt * 60;
 
-    // Heart Collection
-    for (var k = 0; k < playerSeg.sprites.length; k++) {
-        var s = playerSeg.sprites[k];
-        if (s.type === 'heart' && !s.collected) {
-            if (Math.abs(game.playerX - s.x) < 0.3) {
-                s.collected = true;
-                game.score += 10;
-                updateScore();
-                SFX.collect();
-            }
-        }
-    }
+    game.playerX -= (game.playerSpeedX * game.speed * dt * 0.00001); // Centrifugal
+    game.position += game.speed * dt * 0.5; // Move player (half speed for scale feel)
+    if (game.position >= game.totalLength) game.position -= game.totalLength;
+    if (game.position < 0) game.position += game.totalLength;
 
-    // Traffic Collision
-    for (var i = 0; i < game.cars.length; i++) {
-        var c = game.cars[i];
-        if (c.z < game.position - ROAD.SEG_LENGTH * 10) c.z += game.totalLength;
-        c.z += c.speed * dt;
-        var carSeg = findSegment(c.z);
-        if (carSeg.index === playerSeg.index) {
-            if (Math.abs(game.playerX - c.x) < 0.6) {
-                game.speed *= 0.6;
-                SFX.crash();
-                c.x += (game.playerX > c.x ? -0.5 : 0.5);
-            }
-        }
-    }
+    if (game.speed > game.maxSpeed) game.speed = game.maxSpeed;
+    if (game.speed < 0) game.speed = 0;
 
     // Checkpoints
     var progress = game.position / game.totalLength;
     if (progress > 1) progress = 1;
     getEl('journeyFill').style.width = (progress * 100) + '%';
 
-    for (var cpi = game.checkpointIndex; cpi < CHECKPOINTS.length; cpi++) {
-        if (progress >= CHECKPOINTS[cpi].dist && cpi > game.checkpointIndex) {
-            game.checkpointIndex = cpi;
-            var cp = CHECKPOINTS[cpi];
+    if (game.checkpointIndex < CHECKPOINTS.length) {
+        var cp = CHECKPOINTS[game.checkpointIndex];
+        if (progress >= cp.dist) {
+            game.checkpointIndex++;
             getEl('journeyLabel').innerHTML = cp.emoji + ' ' + cp.name;
             game.checkpointBanner = { text: cp.name, emoji: cp.emoji, color: cp.color, timer: 120 };
             SFX.checkpoint();
@@ -329,14 +306,14 @@ function update() {
 
     // Thunder
     if (game.thunderOpacity > 0) game.thunderOpacity -= 0.05;
-    if (Math.random() < 0.003) { game.thunderOpacity = 0.8; game.thunderTimer = 10; SFX.crash(); } // thunder sound reuse
+    if (Math.random() < 0.003) { game.thunderOpacity = 0.8; game.thunderTimer = 10; SFX.crash(); }
 }
 
 // -------- RENDER --------
 function render() {
     var c = C, W = game.W, H = game.H;
 
-    // Sky with Thunder
+    // Sky
     c.fillStyle = '#0f0c29'; c.fillRect(0, 0, W, H);
     var grad = c.createLinearGradient(0, 0, 0, H * 0.6);
     grad.addColorStop(0, '#0a0a25'); grad.addColorStop(1, '#251b4d');
@@ -366,7 +343,7 @@ function render() {
         var xs1 = W / 2 + (x - game.playerX * ROAD.ROAD_W) * scale1 * W / 2;
         var xs2 = W / 2 + (x + dx - game.playerX * ROAD.ROAD_W) * scale2 * W / 2;
         var ys1 = H / 2 - (-cameraHeight - (seg.hill - baseSeg.hill * (1 - basePct))) * scale1 * H / 2;
-        var ys2 = H / 2 - (-cameraHeight - seg.hill) * scale2 * H / 2; // Simplified hill calc
+        var ys2 = H / 2 - (-cameraHeight - seg.hill) * scale2 * H / 2;
 
         seg.p1.screen = { x: xs1, y: ys1, w: ROAD.ROAD_W * scale1 * W / 2, scale: scale1 };
 
@@ -379,10 +356,11 @@ function render() {
         drawQuad(c, seg.color.rumble, xs1 - w1 * 1.2, ys1, xs1 + w1 * 1.2, ys1, xs2 + w2 * 1.2, ys2, xs2 - w2 * 1.2, ys2);
         drawQuad(c, seg.color.road, xs1 - w1, ys1, xs1 + w1, ys1, xs2 + w2, ys2, xs2 - w2, ys2);
 
-        if (seg.color.rumble === '#eeeeee') { // Lane markers
-            var l1 = w1 / 4, l2 = w2 / 4;
-            drawQuad(c, '#fff', xs1 - l1, ys1, xs1 - l1 + w1 * 0.05, ys1, xs2 - l2 + w2 * 0.05, ys2, xs2 - l2, ys2);
-            drawQuad(c, '#fff', xs1 + l1, ys1, xs1 + l1 + w1 * 0.05, ys1, xs2 + l2 + w2 * 0.05, ys2, xs2 + l2, ys2);
+        if ((seg.index / 3) % 2 === 0) { // white lines
+            var l1 = w1 / 30, l2 = w2 / 30;
+            var laneW1 = w1 * 0.65, laneW2 = w2 * 0.65;
+            drawQuad(c, '#fff', xs1 - laneW1 - l1, ys1, xs1 - laneW1 + l1, ys1, xs2 - laneW2 + l2, ys2, xs2 - laneW2 - l2, ys2);
+            drawQuad(c, '#fff', xs1 + laneW1 - l1, ys1, xs1 + laneW1 + l1, ys1, xs2 + laneW2 + l2, ys2, xs2 + laneW2 - l2, ys2);
         }
 
         // Fog
@@ -401,7 +379,7 @@ function render() {
         // Sprites
         for (var i = 0; i < seg.sprites.length; i++) {
             var s = seg.sprites[i];
-            if (s.collected) continue; // Skip collected hearts
+            if (s.collected) continue;
             var sx = sInfo.x + s.x * sInfo.w;
             var sScale = sInfo.w;
             if (s.type === 'tree') drawTree(c, sx, sInfo.y, sScale);
