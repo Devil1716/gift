@@ -88,7 +88,7 @@ var game = {
     segments: [],
     playerX: 0, playerSpeedX: 0,
     position: 0, speed: 0, maxSpeed: ROAD.SEG_LENGTH * 120, // Turbo Speed
-    accel: 0.015, decel: 0.04, offRoadDecel: 0.08, centrifugal: 0.18,
+    accel: 0.02, decel: 0.04, offRoadDecel: 0.08, centrifugal: 0.18,
     cars: [],
     score: 0,
     checkpointIndex: 0, checkpointBanner: null,
@@ -165,7 +165,7 @@ function buildRoad() {
         game.cars.push({
             z: z,
             x: laneX + (Math.random() * 0.1 - 0.05), // slight jitter
-            speed: game.maxSpeed * (0.05 + Math.random() * 0.25), // Much slower traffic (5% - 30% of max)
+            speed: game.maxSpeed * (0.02 + Math.random() * 0.13), // VERY slow traffic (2% - 15% of max)
             type: carType,
             color: j % 4 === 0 ? '#e74c3c' : j % 4 === 1 ? '#3498db' : j % 4 === 2 ? '#f1c40f' : '#fff'
         });
@@ -271,7 +271,7 @@ function update() {
     else game.speed -= game.decel * dt * 20;
 
     // Auto-coast helper (if speed is very low, give a nudge)
-    if (game.speed < 500 && !keys.down && !touch.down) game.speed += accel * dt * 30;
+    if (game.speed < 2000 && !keys.down && !touch.down) game.speed += accel * dt * 40;
 
     game.playerX -= (game.playerSpeedX * game.speed * dt * 0.00001); // Centrifugal
     game.position += game.speed * dt; // Move player (half speed removed)
