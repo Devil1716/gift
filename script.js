@@ -8,7 +8,7 @@ const CONFIG = {
     partnerName: 'My Love',
     billboardPhotos: [
         'photos/photo1.jpg', 'photos/photo2.jpg', 'photos/photo3.jpg',
-        'photos/photo4.jpg', 'photos/photo5.jpg', 'photos/photo6.jpg'
+        'photos/photo4.jpg', 'photos/photo5.jpg'
     ]
 };
 
