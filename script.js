@@ -530,7 +530,7 @@ function launchConfetti() {
 }
 function init() {
     canvas = getEl('gameCanvas'); C = canvas.getContext('2d');
-    journeyFill = getEl('journeyFill'); journeyLabel = getEl('journeyLabel'); scoreDisplay = getEl('game-ui');
+    journeyFill = getEl('journeyFill'); journeyLabel = getEl('journeyLabel');
     window.addEventListener('resize', function () { if (game.running) sizeCanvas(); });
     getEl('soundToggle').onclick = function () { var m = SFX.toggle(); this.innerHTML = m ? '🔇' : '🔊'; };
     getEl('envelopeBtn').onclick = function () { this.classList.add('open'); SFX.tone(400, 'sine', 0.3, 0.1); setTimeout(function () { switchScreen('game'); setTimeout(startGame, 500); }, 1200); };
