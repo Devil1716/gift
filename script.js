@@ -87,7 +87,7 @@ var game = {
     running: false, W: 0, H: 0,
     segments: [],
     playerX: 0, playerSpeedX: 0,
-    position: 0, speed: 0, maxSpeed: ROAD.SEG_LENGTH * 120, // Turbo Speed
+    position: 0, speed: 0, maxSpeed: ROAD.SEG_LENGTH * 60,
     accel: 0.02, decel: 0.04, offRoadDecel: 0.08, centrifugal: 0.18,
     cars: [],
     score: 0,
