@@ -221,7 +221,9 @@ if (tl && tr) {
 function startGame() {
     sizeCanvas(); loadImages(); buildRoad();
     game.playerX = 0; game.playerSpeedX = 0;
-    game.position = 0; game.speed = 0; game.score = 0;
+    game.position = 0;
+    game.speed = game.maxSpeed * 0.4; // Start at 40% speed for instant movement
+    game.score = 0;
     game.checkpointIndex = 0;
     game.checkpointBanner = { text: 'GO!', emoji: '🚗', color: '#fff', timer: 100 };
     updateScore();
@@ -256,25 +258,29 @@ function update() {
         if (car.z < 0) car.z += game.totalLength;
     }
 
-    // Steering
+    // Steering (independent of speed for responsiveness)
     var steer = 0;
     if (keys.left || touch.left) steer = -1;
     if (keys.right || touch.right) steer = 1;
 
-    game.playerSpeedX = steer * 200 * speedPct;
-    game.playerX += game.playerSpeedX * dt * 0.002;
+    game.playerSpeedX += steer * 0.15; // Smooth inertia
+    game.playerSpeedX *= 0.85; // Damping
+    game.playerX += game.playerSpeedX * 0.12;
 
-    // Acceleration
+    // Acceleration with high minimum speed
     var accel = game.maxSpeed * game.accel;
-    if (keys.up || touch.up) game.speed += accel * dt * 60;
-    else if (keys.down || touch.down) game.speed -= game.decel * dt * 60;
-    else game.speed -= game.decel * dt * 20;
+    var minSpeed = game.maxSpeed * 0.4; // Start at 40% of max speed
 
-    // Auto-coast helper (if speed is very low, give a nudge)
-    if (game.speed < 2000 && !keys.down && !touch.down) game.speed += accel * dt * 40;
+    if (keys.up || touch.up) game.speed += accel * dt * 80;
+    else if (keys.down || touch.down) game.speed -= game.decel * dt * 80;
+    else game.speed -= game.decel * dt * 10;
 
-    game.playerX -= (game.playerSpeedX * game.speed * dt * 0.00001); // Centrifugal
-    game.position += game.speed * dt; // Move player (half speed removed)
+    // Auto-acceleration to maintain minimum speed
+    if (game.speed < minSpeed && !keys.down && !touch.down) {
+        game.speed += accel * dt * 100;
+    }
+
+    game.position += game.speed * dt;
     if (game.position >= game.totalLength) game.position -= game.totalLength;
     if (game.position < 0) game.position += game.totalLength;
 
