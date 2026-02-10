@@ -159,6 +159,8 @@ function buildRoad() {
     game.cars = [];
     for (var j = 0; j < 500; j++) {
         var z = 2000 + Math.random() * (game.totalLength - 4000);
+        var lane = Math.floor(Math.random() * 3); // 0, 1, 2
+        var laneX = (lane === 0) ? -0.6 : (lane === 1) ? 0 : 0.6;
         var type = Math.random();
         var carType = 'car';
         if (type > 0.7) carType = 'auto'; // 30% autos
@@ -166,7 +168,7 @@ function buildRoad() {
 
         game.cars.push({
             z: z,
-            x: (Math.random() * 2 - 1) * 0.8,
+            x: laneX + (Math.random() * 0.1 - 0.05), // slight jitter
             speed: game.maxSpeed * (0.2 + Math.random() * 0.3),
             type: carType,
             color: j % 4 === 0 ? '#e74c3c' : j % 4 === 1 ? '#3498db' : j % 4 === 2 ? '#f1c40f' : '#fff'
@@ -473,8 +475,8 @@ function drawHeart(c, x, y, s) {
     c.fillText('💖', x, y - h - dy);
 }
 function drawAuto(c, x, y, s) { // Rickshaw
-    var w = s * 0.22, h = s * 0.18;
-    c.fillStyle = 'rgba(0,0,0,0.5)'; c.fillRect(x - w * 0.4, y - h * 0.1, w * 0.8, h * 0.15); // shadow
+    var w = s * 0.25, h = s * 0.20;
+    c.fillStyle = 'rgba(0,0,0,0.5)'; c.fillRect(x - w * 0.4, y - h * 0.05, w * 0.8, h * 0.10); // shadow
     c.fillStyle = '#f1c40f'; // yellow body
     c.beginPath(); c.roundRect(x - w / 2, y - h, w, h * 0.85, 4); c.fill();
     c.fillStyle = '#2ecc71'; // green top
@@ -483,7 +485,7 @@ function drawAuto(c, x, y, s) { // Rickshaw
     c.fillRect(x - w * 0.5, y - h * 0.3, w * 0.1, h * 0.3); c.fillRect(x + w * 0.4, y - h * 0.3, w * 0.1, h * 0.3);
 }
 function drawBus(c, x, y, s) { // BMTC
-    var w = s * 0.35, h = s * 0.28;
+    var w = s * 0.45, h = s * 0.35;
     c.fillStyle = '#3498db'; // blue
     c.beginPath(); c.roundRect(x - w / 2, y - h, w, h * 0.9, 2); c.fill();
     c.fillStyle = '#fff'; // stripes/windows
@@ -492,7 +494,7 @@ function drawBus(c, x, y, s) { // BMTC
     c.fillRect(x + w * 0.3, y - h * 0.3, w * 0.1, h * 0.05);
 }
 function drawCar(c, x, y, s, col) {
-    var w = s * 0.25, h = s * 0.2;
+    var w = s * 0.28, h = s * 0.22;
     c.fillStyle = col; c.fillRect(x - w / 2, y - h, w, h * 0.8);
     c.fillStyle = '#333'; c.fillRect(x - w * 0.4, y - h * 0.9, w * 0.8, h * 0.3); // roof
     c.fillStyle = '#f00'; c.fillRect(x - w * 0.35, y - h * 0.3, w * 0.15, h * 0.1); c.fillRect(x + w * 0.2, y - h * 0.3, w * 0.15, h * 0.1); // lights
