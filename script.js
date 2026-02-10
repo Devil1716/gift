@@ -222,7 +222,7 @@ function startGame() {
     sizeCanvas(); loadImages(); buildRoad();
     game.playerX = 0; game.playerSpeedX = 0;
     game.position = 0;
-    game.speed = game.maxSpeed * 0.4; // Start at 40% speed for instant movement
+    game.speed = 0;
     game.score = 0;
     game.checkpointIndex = 0;
     game.checkpointBanner = { text: 'GO!', emoji: '🚗', color: '#fff', timer: 100 };
@@ -254,38 +254,59 @@ function update() {
     for (var i = 0; i < game.cars.length; i++) {
         var car = game.cars[i];
         car.z += car.speed * dt;
-        if (car.z > game.totalLength) car.z -= game.totalLength; // Loop
+        if (car.z > game.totalLength) car.z -= game.totalLength;
         if (car.z < 0) car.z += game.totalLength;
     }
 
-    // Steering (independent of speed for responsiveness)
+    // Steering (original inertia model)
     var steer = 0;
     if (keys.left || touch.left) steer = -1;
     if (keys.right || touch.right) steer = 1;
+    game.playerSpeedX += steer * 0.1;
+    game.playerSpeedX *= 0.92;
+    game.playerX += game.playerSpeedX * speedPct * 0.08;
 
-    game.playerSpeedX += steer * 0.15; // Smooth inertia
-    game.playerSpeedX *= 0.85; // Damping
-    game.playerX += game.playerSpeedX * 0.12;
+    // Auto accelerate + Physics (original model)
+    game.speed += game.maxSpeed * game.accel;
+    var seg = findSegment(game.position);
+    if ((game.playerX < -1 || game.playerX > 1) && speedPct > 0.3) {
+        game.speed -= game.speed * game.offRoadDecel;
+        if (game.playerX < -1) game.playerX = -1.05;
+        if (game.playerX > 1) game.playerX = 1.05;
+    }
+    game.playerX -= seg.curve * game.centrifugal * speedPct * speedPct * dt * 4;
+    game.speed = Math.max(0, Math.min(game.speed, game.maxSpeed));
+    game.position += game.speed * dt;
 
-    // Acceleration with high minimum speed
-    var accel = game.maxSpeed * game.accel;
-    var minSpeed = game.maxSpeed * 0.4; // Start at 40% of max speed
+    // Collisions
+    var playerZ = cameraHeight * cameraDepth;
+    var playerSeg = findSegment(game.position + playerZ);
 
-    if (keys.up || touch.up) game.speed += accel * dt * 80;
-    else if (keys.down || touch.down) game.speed -= game.decel * dt * 80;
-    else game.speed -= game.decel * dt * 10;
-
-    // Auto-acceleration to maintain minimum speed
-    if (game.speed < minSpeed && !keys.down && !touch.down) {
-        game.speed += accel * dt * 100;
+    // Heart Collection
+    for (var k = 0; k < playerSeg.sprites.length; k++) {
+        var s = playerSeg.sprites[k];
+        if (s.type === 'heart' && !s.collected) {
+            if (Math.abs(game.playerX - s.x) < 0.3) {
+                s.collected = true;
+                game.score += 10;
+                updateScore();
+                SFX.collect();
+            }
+        }
     }
 
-    game.position += game.speed * dt;
-    if (game.position >= game.totalLength) game.position -= game.totalLength;
-    if (game.position < 0) game.position += game.totalLength;
-
-    if (game.speed > game.maxSpeed) game.speed = game.maxSpeed;
-    if (game.speed < 0) game.speed = 0;
+    // Traffic Collision
+    for (var i = 0; i < game.cars.length; i++) {
+        var c = game.cars[i];
+        var carSeg = findSegment(c.z);
+        if (carSeg.index === playerSeg.index) {
+            if (Math.abs(game.playerX - c.x) < 0.6) {
+                game.speed *= 0.6;
+                SFX.crash();
+                c.x += (game.playerX > c.x ? -0.5 : 0.5);
+            }
+        }
+    }
 
     // Checkpoints
     var progress = game.position / game.totalLength;
